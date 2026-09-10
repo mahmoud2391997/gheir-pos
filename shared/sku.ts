@@ -2,7 +2,7 @@ export type UserRole = "admin" | "cashier";
 export type PaymentMethod = "cash" | "card" | "instapay";
 export type AppSection = "register" | "orders" | "catalog" | "sku";
 
-export type ProductRecord = { id: number; name: string; arabicName?: string | null; category: string; baseSku: string; price: number; stock: number; color: string; colorCode: string; shape: string; barcode?: string; active?: boolean };
+export type ProductRecord = { id: number; name: string; arabicName?: string | null; englishName?: string | null; category: string; baseSku: string; price: number; stock: number; color: string; colorCode: string; shape: string; barcode?: string; active?: boolean };
 export type SaleRecord = { id: number; receiptNumber: string; total: number; paymentMethod: PaymentMethod; items: Array<{ name: string; quantity: number; total: number }>; createdAt: string };
 export type DashboardSummary = { todaySales: number; completedSales: number; averageOrder: number; lowStockItems: number };
 export type SkuRow = { sku: string; name: string; color: string; price: number };
