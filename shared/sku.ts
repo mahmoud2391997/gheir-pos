@@ -2,7 +2,7 @@ export type UserRole = "admin" | "cashier";
 export type PaymentMethod = "cash" | "card" | "instapay";
 export type AppSection = "register" | "orders" | "catalog" | "sku";
 
-export type ProductRecord = { id: number; name: string; arabicName?: string | null; category: string; baseSku: string; price: number; stock: number; color: string; colorCode: string; shape: string; active?: boolean };
+export type ProductRecord = { id: number; name: string; arabicName?: string | null; category: string; baseSku: string; price: number; stock: number; color: string; colorCode: string; shape: string; barcode?: string; active?: boolean };
 export type SaleRecord = { id: number; receiptNumber: string; total: number; paymentMethod: PaymentMethod; items: Array<{ name: string; quantity: number; total: number }>; createdAt: string };
 export type DashboardSummary = { todaySales: number; completedSales: number; averageOrder: number; lowStockItems: number };
 export type SkuRow = { sku: string; name: string; color: string; price: number };
@@ -77,7 +77,11 @@ export const projectStack = "Node.js + React + tRPC + Drizzle + Electron-ready";
 export const roadmap = ["Validate workflows", "Connect database", "Package Electron shell", "Bridge scanner + printer", "Add offline sync"] as const;
 
 export function normalizeSkuPart(value: string) { return value.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-+|-+$/g, ""); }
+export function generateFamilyCode(name: string) { return normalizeSkuPart(name).split("-").filter(Boolean).map((part) => part[0]).join("").slice(0, 8) || "ITEM"; }
+export function generateColorCode(color: string) { return normalizeSkuPart(color).replaceAll("-", "").slice(0, 8) || "NAT"; }
 export function createProductSku(baseSku: string, colorCode: string, serial: number) { return [normalizeSkuPart(baseSku), normalizeSkuPart(colorCode), String(serial).padStart(4, "0")].filter(Boolean).join("-"); }
+export function createGeneratedProductSku(name: string, color: string, serial: number) { return createProductSku(generateFamilyCode(name), generateColorCode(color), serial); }
+export function createGeneratedBarcode(name: string, color: string, serial: number) { return makeBarcodeText(createGeneratedProductSku(name, color, serial)); }
 export function generateSkuRows(input: { baseSku: string; colorCode: string; copies: number; nextSerial: number }, name: string, color: string, price: number): SkuRow[] { return Array.from({ length: Math.max(0, input.copies) }, (_, index) => ({ sku: createProductSku(input.baseSku, input.colorCode, input.nextSerial + index), name, color, price })); }
 export function skuLabelCsv(rows: SkuRow[]) { const header = "SKU,Product,Color,Price"; const lines = rows.map((row) => [row.sku, row.name, row.color, row.price.toFixed(2)].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")); return [header, ...lines].join("\n"); }
 export function downloadCsv(filename: string, csv: string) { if (typeof window === "undefined") return; const blob = new Blob([csv], { type: "text/csv;charset=utf-8" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url); }

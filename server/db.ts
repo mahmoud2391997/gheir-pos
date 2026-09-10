@@ -1,7 +1,7 @@
 import { desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, inventoryUnits, productVariants, products, saleItems, sales, skuPrintJobs, users } from "../drizzle/schema";
-import { createProductSku } from "../shared/sku";
+import { createProductSku, generateColorCode, generateFamilyCode } from "../shared/sku";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -63,16 +63,22 @@ export async function listSales(limit = 100) {
   return rows.map((sale) => ({ ...sale, subtotal: Number(sale.subtotal), tax: Number(sale.tax), total: Number(sale.total), items: items.filter((item) => item.saleId === sale.id).map((item) => ({ name: item.nameSnapshot, quantity: item.quantity, total: Number(item.lineTotal) })) }));
 }
 
-export async function createProductWithVariant(input: { name: string; arabicName?: string; category: string; baseSku: string; price: number; color: string; colorCode: string; copies: number }) {
+export async function createProductWithVariant(input: { name: string; arabicName?: string; category: string; price: number; colors: string[]; copies: number }) {
   const db = await getDb();
   if (!db) return null;
-  const result = await db.insert(products).values({ name: input.name, arabicName: input.arabicName ?? null, category: input.category, baseSku: input.baseSku, price: input.price.toFixed(2) });
+  const baseSku = generateFamilyCode(input.name);
+  const result = await db.insert(products).values({ name: input.name, arabicName: input.arabicName ?? null, category: input.category, baseSku, price: input.price.toFixed(2) });
   const productId = Number(result[0].insertId);
-  const variantResult = await db.insert(productVariants).values({ productId, color: input.color, colorCode: input.colorCode, nextSerial: input.copies + 1 });
-  const variantId = Number(variantResult[0].insertId);
-  const units = Array.from({ length: input.copies }, (_, index) => ({ productId, variantId, sku: createProductSku(input.baseSku, input.colorCode, index + 1), serial: index + 1 }));
-  if (units.length) await db.insert(inventoryUnits).values(units);
-  return { productId, variantId, count: units.length };
+  const created = [];
+  for (const color of input.colors) {
+    const colorCode = generateColorCode(color);
+    const variantResult = await db.insert(productVariants).values({ productId, color, colorCode, nextSerial: input.copies + 1 });
+    const variantId = Number(variantResult[0].insertId);
+    const units = Array.from({ length: input.copies }, (_, index) => ({ productId, variantId, sku: createProductSku(baseSku, colorCode, index + 1), serial: index + 1 }));
+    if (units.length) await db.insert(inventoryUnits).values(units);
+    created.push({ variantId, color, colorCode, count: units.length });
+  }
+  return { productId, baseSku, variants: created, count: created.reduce((total, variant) => total + variant.count, 0) };
 }
 
 export async function createSale(input: { cashierId: number; customerName?: string | null; subtotal: number; tax: number; total: number; paymentMethod: "cash" | "card" | "instapay"; items: Array<{ productId: number; quantity: number; name: string; unitPrice: number; lineTotal: number }> }) {
