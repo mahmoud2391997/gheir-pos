@@ -13,7 +13,7 @@ export const appRouter = router({
   dashboard: protectedProcedure.query(() => getDashboard()),
   products: router({
     list: protectedProcedure.query(() => listProducts()),
-    create: adminProcedure.input(z.object({ name: z.string().min(1), arabicName: z.string().optional(), category: z.string().min(1), baseSku: z.string().min(1), price: z.number().nonnegative(), color: z.string().min(1), colorCode: z.string().min(1), copies: z.number().int().positive().max(500) })).mutation(({ input }) => createProductWithVariant(input)),
+    create: adminProcedure.input(z.object({ name: z.string().trim().min(1), arabicName: z.string().optional(), category: z.string().trim().min(1), price: z.number().nonnegative(), colors: z.array(z.string().trim().min(1)).min(1).max(20), copies: z.number().int().positive().max(500) }).superRefine((input, ctx) => { if (new Set(input.colors.map((color) => color.toUpperCase())).size !== input.colors.length) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["colors"], message: "Colors must be unique" }); })).mutation(({ input }) => createProductWithVariant(input)),
   }),
   sales: router({
     list: protectedProcedure.input(z.object({ limit: z.number().int().positive().max(100).default(100) }).optional()).query(({ input }) => listSales(input?.limit ?? 100)),

@@ -1,8 +1,8 @@
 export type UserRole = "admin" | "cashier";
 export type PaymentMethod = "cash" | "card" | "instapay";
-export type AppSection = "register" | "orders" | "catalog" | "sku";
+export type AppSection = "register" | "orders" | "catalog" | "sku" | "reports";
 
-export type ProductRecord = { id: number; name: string; arabicName?: string | null; category: string; baseSku: string; price: number; stock: number; color: string; colorCode: string; shape: string; active?: boolean };
+export type ProductRecord = { id: number; name: string; arabicName?: string | null; englishName?: string | null; category: string; baseSku: string; price: number; stock: number; color: string; colorCode: string; shape: string; barcode?: string; active?: boolean };
 export type SaleRecord = { id: number; receiptNumber: string; total: number; paymentMethod: PaymentMethod; items: Array<{ name: string; quantity: number; total: number }>; createdAt: string };
 export type DashboardSummary = { todaySales: number; completedSales: number; averageOrder: number; lowStockItems: number };
 export type SkuRow = { sku: string; name: string; color: string; price: number };
@@ -15,7 +15,8 @@ export const appSections: Array<{ id: AppSection; label: string; caption: string
   { id: "register", label: "Register", caption: "Sell at the counter" },
   { id: "orders", label: "Orders", caption: "Sales history" },
   { id: "catalog", label: "Catalog", caption: "Products & stock" },
-  { id: "sku", label: "SKU Lab", caption: "Print product labels" },
+  { id: "sku", label: "SKU Lab", caption: "Export product labels" },
+  { id: "reports", label: "Reports", caption: "Sales and stock" },
 ];
 
 export const demoProducts: ProductRecord[] = [
@@ -47,7 +48,7 @@ export const architectureCopy = "Node.js + tRPC + Drizzle now; Electron desktop 
 export const browserHardwareNote = "Browser preview uses keyboard-wedge scanning and the system print dialog.";
 export const electronHardwareNote = "Electron can replace these adapters with native scanner and thermal-printer bridges without changing the POS screens.";
 export const checkoutNote = "Tax is shown as a configurable 14% placeholder for the demo register.";
-export const skuFlowCopy = "Family SKU → color extension → unique copy serial → printable label.";
+export const skuFlowCopy = "Select products already on the shelf and export their existing SKUs for your label printer.";
 export const printFlowCopy = "CSV export is ready for a SKU printer; receipt print uses the system print dialog.";
 export const scannerFlowCopy = "Scan a full unique SKU to resolve the exact physical copy at checkout.";
 export const roleCopy: Record<UserRole, { label: string; detail: string }> = { cashier: { label: "Cashier", detail: "Register + orders" }, admin: { label: "Admin", detail: "Full store controls" } };
@@ -65,10 +66,10 @@ export const cashierReadyCopy = "Cashier register is ready for scanning.";
 export const printReadyCopy = "Label CSV is ready for a SKU printer workflow.";
 export const receiptReadyCopy = "Receipt is ready for the thermal printer.";
 export const emptyOrdersCopy = "Completed sales will settle here after the first checkout.";
-export const emptySkuCopy = "Generate a run of unique product identifiers for the label printer.";
+export const emptySkuCopy = "Add products to the catalog first, then select them here to export their existing SKUs.";
 export const emptyCatalogCopy = "Product families and their physical copies will appear here.";
 export const footerMeta = `2026.09 · ${printerPaper} · ${scannerMode}`;
-export const rolePermissions = { cashier: ["register", "orders"], admin: ["register", "orders", "catalog", "sku"] } as const;
+export const rolePermissions = { cashier: ["register", "orders"], admin: ["register", "orders", "catalog", "sku", "reports"] } as const;
 export const appName = "GHEIR POS";
 export const currency = "EGP";
 export const taxRate = demoTaxRate;
@@ -77,7 +78,11 @@ export const projectStack = "Node.js + React + tRPC + Drizzle + Electron-ready";
 export const roadmap = ["Validate workflows", "Connect database", "Package Electron shell", "Bridge scanner + printer", "Add offline sync"] as const;
 
 export function normalizeSkuPart(value: string) { return value.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-+|-+$/g, ""); }
+export function generateFamilyCode(name: string) { return normalizeSkuPart(name).split("-").filter(Boolean).map((part) => part[0]).join("").slice(0, 8) || "ITEM"; }
+export function generateColorCode(color: string) { return normalizeSkuPart(color).replaceAll("-", "").slice(0, 8) || "NAT"; }
 export function createProductSku(baseSku: string, colorCode: string, serial: number) { return [normalizeSkuPart(baseSku), normalizeSkuPart(colorCode), String(serial).padStart(4, "0")].filter(Boolean).join("-"); }
+export function createGeneratedProductSku(name: string, color: string, serial: number) { return createProductSku(generateFamilyCode(name), generateColorCode(color), serial); }
+export function createGeneratedBarcode(name: string, color: string, serial: number) { return makeBarcodeText(createGeneratedProductSku(name, color, serial)); }
 export function generateSkuRows(input: { baseSku: string; colorCode: string; copies: number; nextSerial: number }, name: string, color: string, price: number): SkuRow[] { return Array.from({ length: Math.max(0, input.copies) }, (_, index) => ({ sku: createProductSku(input.baseSku, input.colorCode, input.nextSerial + index), name, color, price })); }
 export function skuLabelCsv(rows: SkuRow[]) { const header = "SKU,Product,Color,Price"; const lines = rows.map((row) => [row.sku, row.name, row.color, row.price.toFixed(2)].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")); return [header, ...lines].join("\n"); }
 export function downloadCsv(filename: string, csv: string) { if (typeof window === "undefined") return; const blob = new Blob([csv], { type: "text/csv;charset=utf-8" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url); }
@@ -105,7 +110,7 @@ export function getTodaySales(sales: SaleRecord[]) { return sales.reduce((sum, s
 export function getAverageOrder(sales: SaleRecord[]) { return sales.length ? Math.round(getTodaySales(sales) / sales.length) : 0; }
 export function makeDashboard(sales: SaleRecord[], products: ProductRecord[]): DashboardSummary { return { todaySales: getTodaySales(sales), completedSales: sales.length, averageOrder: getAverageOrder(sales), lowStockItems: products.filter((product) => product.stock <= 3).length }; }
 export function getSectionTitle(section: AppSection) { return appSections.find((item) => item.id === section)?.label ?? "Register"; }
-export function sectionIsAdminOnly(section: AppSection) { return section === "catalog" || section === "sku"; }
+export function sectionIsAdminOnly(section: AppSection) { return section === "catalog" || section === "sku" || section === "reports"; }
 export function getRoleGreeting(role: UserRole) { return role === "admin" ? "Keep the shelf clear and the identity consistent." : "A calm counter for a considered purchase."; }
 export function safeTrim(value: string) { return value.trim().replace(/\s+/g, " "); }
 export function asPositiveInt(value: string, fallback = 1) { const number = Number.parseInt(value, 10); return Number.isFinite(number) && number > 0 ? number : fallback; }
@@ -139,7 +144,7 @@ export const noCartLabel = "Your counter is clear. Scan or choose a piece to beg
 export const registerTitle = "Make a sale";
 export const ordersTitle = "Sales journal";
 export const catalogTitle = "Product shelf";
-export const skuTitle = "SKU label studio";
+export const skuTitle = "SKU file exporter";
 export const registerEyebrow = "GHEIR / Register";
 export const ordersEyebrow = "GHEIR / Orders";
 export const catalogEyebrow = "GHEIR / Catalog";
