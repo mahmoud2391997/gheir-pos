@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @custom-variant dark (&:is(.dark *));
@@ -20,7 +20,7 @@
   --font-mono: var(--app-font-mono);
 }
 
-:root { --background: 38 42% 92%; --foreground: 20 10% 17%; --card: 40 45% 95%; --card-foreground: 20 10% 17%; --primary: 144 14% 21%; --primary-foreground: 40 45% 95%; --muted: 38 27% 86%; --muted-foreground: 22 8% 41%; --border: 35 24% 78%; --input: 35 24% 78%; --ring: 144 14% 21%; --app-font-sans: 'Manrope', sans-serif; --app-font-serif: 'Cormorant Garamond', serif; --app-font-mono: 'DM Mono', monospace; }
+:root { --background: 38 42% 92%; --foreground: 20 10% 17%; --card: 40 45% 95%; --card-foreground: 20 10% 17%; --primary: 144 14% 21%; --primary-foreground: 40 45% 95%; --muted: 38 27% 86%; --muted-foreground: 22 8% 41%; --border: 35 24% 78%; --input: 35 24% 78%; --ring: 144 14% 21%; --app-font-sans: 'IBM Plex Sans Arabic', 'Manrope', sans-serif; --app-font-serif: 'Cormorant Garamond', serif; --app-font-mono: 'DM Mono', monospace; }
 * { box-sizing: border-box; }
 html { background: #f2ead8; }
 body { margin: 0; min-width: 320px; background: #f2ead8; color: #2b2b2b; font-family: var(--app-font-sans); font-feature-settings: "ss01" 1, "cv11" 1; }
@@ -29,7 +29,7 @@ button { cursor: pointer; }
 ::selection { background: #5c4033; color: #f2ead8; }
 .serif { font-family: var(--app-font-serif); }
 .mono { font-family: var(--app-font-mono); }
-.gheir-shell { min-height: 100dvh; background: radial-gradient(circle at 84% 0%, rgba(217,199,163,.26), transparent 30rem), #f2ead8; }
+.gheir-shell { height: 100dvh; overflow: hidden; background: radial-gradient(circle at 84% 0%, rgba(217,199,163,.26), transparent 30rem), #f2ead8; }
 .grain::after { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .035; z-index: 40; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E"); }
 .product-art { transition: transform .22s ease; }
 .product-card:hover .product-art { transform: translateY(-4px) rotate(-2deg); }
@@ -38,5 +38,6 @@ button { cursor: pointer; }
 .scrollbar-warm::-webkit-scrollbar { width: 6px; height: 6px; }
 .scrollbar-warm::-webkit-scrollbar-thumb { background: #c7ae88; border-radius: 999px; }
 @media (max-width: 767px) { .mobile-stack { grid-template-columns: 1fr !important; } .gheir-shell aside { max-width: min(86vw, 248px); } .gheir-shell main { width: 100%; } }
-@media (min-width: 768px) { .gheir-shell[dir="ltr"] aside { left: 0; right: auto; transform: none !important; } .gheir-shell[dir="rtl"] aside { right: 0; left: auto; transform: none !important; } .gheir-shell[dir="ltr"] main { margin-left: 248px; margin-right: 0; } .gheir-shell[dir="rtl"] main { margin-right: 248px; margin-left: 0; } .gheir-shell.sidebar-collapsed[dir="ltr"] main { margin-left: 78px; } .gheir-shell.sidebar-collapsed[dir="rtl"] main { margin-right: 78px; } }
+@media (min-width: 768px) { .gheir-shell[dir="ltr"] aside { left: 0; right: auto; transform: none !important; } .gheir-shell[dir="rtl"] aside { right: 0; left: auto; transform: none !important; } }
 .gheir-shell[dir="rtl"] .text-left { text-align: right; } .gheir-shell[dir="rtl"] .text-right { text-align: left; }
+.gheir-shell[dir="rtl"] .serif:not(.brand-wordmark) { letter-spacing: 0 !important; }

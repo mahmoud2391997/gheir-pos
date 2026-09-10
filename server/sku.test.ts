@@ -13,9 +13,9 @@ describe("GHEIR SKU rules", () => {
   });
 
   it("exports printer-friendly CSV with a header and escaped values", () => {
-    const csv = skuLabelCsv([{ sku: "VASE-CLAY-0007", name: "Sculpted Vessel", color: "Clay", price: 1850 }]);
-    expect(csv).toContain("SKU,Product,Color,Price");
-    expect(csv).toContain('"VASE-CLAY-0007","Sculpted Vessel","Clay","1850.00"');
+    const csv = skuLabelCsv([{ sku: "VASE-CLAY-0007", name: "Sculpted Vessel", arabicName: "إناء منحوت", color: "Clay", colorArabic: "طين", price: 1850 }]);
+    expect(csv).toContain("SKU,Product English,Product Arabic,Color English,Color Arabic,Price");
+    expect(csv).toContain('"VASE-CLAY-0007","Sculpted Vessel","إناء منحوت","Clay","طين","1850.00"');
   });
 });
 
