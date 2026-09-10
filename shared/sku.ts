@@ -1,6 +1,6 @@
 export type UserRole = "admin" | "cashier";
 export type PaymentMethod = "cash" | "card" | "instapay";
-export type AppSection = "register" | "orders" | "catalog" | "sku";
+export type AppSection = "register" | "orders" | "catalog" | "sku" | "reports";
 
 export type ProductRecord = { id: number; name: string; arabicName?: string | null; englishName?: string | null; category: string; baseSku: string; price: number; stock: number; color: string; colorCode: string; shape: string; barcode?: string; active?: boolean };
 export type SaleRecord = { id: number; receiptNumber: string; total: number; paymentMethod: PaymentMethod; items: Array<{ name: string; quantity: number; total: number }>; createdAt: string };
@@ -15,7 +15,8 @@ export const appSections: Array<{ id: AppSection; label: string; caption: string
   { id: "register", label: "Register", caption: "Sell at the counter" },
   { id: "orders", label: "Orders", caption: "Sales history" },
   { id: "catalog", label: "Catalog", caption: "Products & stock" },
-  { id: "sku", label: "SKU Lab", caption: "Print product labels" },
+  { id: "sku", label: "SKU Lab", caption: "Export product labels" },
+  { id: "reports", label: "Reports", caption: "Sales and stock" },
 ];
 
 export const demoProducts: ProductRecord[] = [
@@ -68,7 +69,7 @@ export const emptyOrdersCopy = "Completed sales will settle here after the first
 export const emptySkuCopy = "Add products to the catalog first, then select them here to export their existing SKUs.";
 export const emptyCatalogCopy = "Product families and their physical copies will appear here.";
 export const footerMeta = `2026.09 · ${printerPaper} · ${scannerMode}`;
-export const rolePermissions = { cashier: ["register", "orders"], admin: ["register", "orders", "catalog", "sku"] } as const;
+export const rolePermissions = { cashier: ["register", "orders"], admin: ["register", "orders", "catalog", "sku", "reports"] } as const;
 export const appName = "GHEIR POS";
 export const currency = "EGP";
 export const taxRate = demoTaxRate;
@@ -109,7 +110,7 @@ export function getTodaySales(sales: SaleRecord[]) { return sales.reduce((sum, s
 export function getAverageOrder(sales: SaleRecord[]) { return sales.length ? Math.round(getTodaySales(sales) / sales.length) : 0; }
 export function makeDashboard(sales: SaleRecord[], products: ProductRecord[]): DashboardSummary { return { todaySales: getTodaySales(sales), completedSales: sales.length, averageOrder: getAverageOrder(sales), lowStockItems: products.filter((product) => product.stock <= 3).length }; }
 export function getSectionTitle(section: AppSection) { return appSections.find((item) => item.id === section)?.label ?? "Register"; }
-export function sectionIsAdminOnly(section: AppSection) { return section === "catalog" || section === "sku"; }
+export function sectionIsAdminOnly(section: AppSection) { return section === "catalog" || section === "sku" || section === "reports"; }
 export function getRoleGreeting(role: UserRole) { return role === "admin" ? "Keep the shelf clear and the identity consistent." : "A calm counter for a considered purchase."; }
 export function safeTrim(value: string) { return value.trim().replace(/\s+/g, " "); }
 export function asPositiveInt(value: string, fallback = 1) { const number = Number.parseInt(value, 10); return Number.isFinite(number) && number > 0 ? number : fallback; }
