@@ -11,12 +11,12 @@ export const appBrand = { name: "GHEIR", descriptor: "Handcrafted design studio"
 export const categories = ["All", "Tableware", "Decor", "Serving", "Accessories"] as const;
 export const paymentLabels: Record<PaymentMethod, string> = { cash: "Cash", card: "Card", instapay: "InstaPay" };
 export const paymentDetails: Record<PaymentMethod, string> = { cash: "Collected at counter", card: "Terminal payment", instapay: "QR transfer" };
-export const appSections: Array<{ id: AppSection; label: string; caption: string }> = [
-  { id: "register", label: "Register", caption: "Sell at the counter" },
-  { id: "orders", label: "Orders", caption: "Sales history" },
-  { id: "catalog", label: "Catalog", caption: "Products & stock" },
-  { id: "sku", label: "SKU Lab", caption: "Export product labels" },
-  { id: "reports", label: "Reports", caption: "Sales and stock" },
+export const appSections: Array<{ id: AppSection; label: string; arabicLabel: string; caption: string; arabicCaption: string }> = [
+  { id: "register", label: "Register", arabicLabel: "نقطة البيع", caption: "Sell at the counter", arabicCaption: "إتمام المبيعات" },
+  { id: "orders", label: "Orders", arabicLabel: "الطلبات", caption: "Sales history", arabicCaption: "سجل المبيعات" },
+  { id: "catalog", label: "Catalog", arabicLabel: "المنتجات", caption: "Products & stock", arabicCaption: "المنتجات والمخزون" },
+  { id: "sku", label: "SKU Lab", arabicLabel: "معمل الأكواد", caption: "Export product labels", arabicCaption: "تصدير ملصقات المنتجات" },
+  { id: "reports", label: "Reports", arabicLabel: "التقارير", caption: "Sales and stock", arabicCaption: "المبيعات والمخزون" },
 ];
 
 export const demoProducts: ProductRecord[] = [
@@ -85,7 +85,10 @@ export function createGeneratedProductSku(name: string, color: string, serial: n
 export function createGeneratedBarcode(name: string, color: string, serial: number) { return makeBarcodeText(createGeneratedProductSku(name, color, serial)); }
 export function generateSkuRows(input: { baseSku: string; colorCode: string; copies: number; nextSerial: number }, name: string, color: string, price: number): SkuRow[] { return Array.from({ length: Math.max(0, input.copies) }, (_, index) => ({ sku: createProductSku(input.baseSku, input.colorCode, input.nextSerial + index), name, color, price })); }
 export function skuLabelCsv(rows: SkuRow[]) { const header = "SKU,Product,Color,Price"; const lines = rows.map((row) => [row.sku, row.name, row.color, row.price.toFixed(2)].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")); return [header, ...lines].join("\n"); }
-export function downloadCsv(filename: string, csv: string) { if (typeof window === "undefined") return; const blob = new Blob([csv], { type: "text/csv;charset=utf-8" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url); }
+export function downloadCsv(filename: string, csv: string) { if (typeof window === "undefined") return; const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 100); }
+export function productCsv(products: ProductRecord[]) { const header = "Name,Arabic Name,Category,Price,Stock,Color,Color Code,Base SKU,Barcode,Shape"; const lines = products.map((product) => [product.name, product.arabicName ?? "", product.category, product.price, product.stock, product.color, product.colorCode, product.baseSku, product.barcode ?? "", product.shape].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")); return [header, ...lines].join("\n"); }
+export function productCsvTemplate() { return "Name,Arabic Name,Category,Price,Stock,Color,Color Code,Base SKU,Barcode,Shape\nStoneware cup,كوب فخاري,Tableware,1200,5,Clay,,CUP,,round"; }
+export function parseProductCsv(csv: string): ProductRecord[] { const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/).filter(Boolean); if (lines.length < 2) return []; const parse = (line: string) => line.match(/(?:^|,)\s*(?:"((?:[^"]|"")*)"|([^,]*))/g)?.map((part) => part.replace(/^,?\s*/, "").replace(/^"|"$/g, "").replaceAll('""', '"').trim()) ?? []; return lines.slice(1).map((line, index) => { const values = parse(line); const name = safeTrim(values[0] || ""); const color = safeTrim(values[5] || "Natural"); if (!name) return null; return normalizeProduct({ id: Date.now() + index, name, arabicName: values[1] || null, category: values[2] || "Uncategorized", price: Number(values[3]) || 0, stock: Number(values[4]) || 0, color, colorCode: generateColorCode(color), baseSku: values[7] || generateFamilyCode(name), barcode: values[8] || createGeneratedProductSku(name, color, 1).replaceAll("-", ""), shape: values[9] || "round" }); }).filter((product): product is ProductRecord => Boolean(product)); }
 export function formatMoney(value: number) { return new Intl.NumberFormat("en-EG", { style: "currency", currency: "EGP", maximumFractionDigits: 0 }).format(value || 0); }
 export function formatDate(value: string | Date) { return new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value)); }
 export function formatTime(value: string | Date) { return new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit" }).format(new Date(value)); }
