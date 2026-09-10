@@ -37,4 +37,6 @@ button { cursor: pointer; }
 @keyframes display-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .scrollbar-warm::-webkit-scrollbar { width: 6px; height: 6px; }
 .scrollbar-warm::-webkit-scrollbar-thumb { background: #c7ae88; border-radius: 999px; }
-@media (max-width: 767px) { .mobile-stack { grid-template-columns: 1fr !important; } }
+@media (max-width: 767px) { .mobile-stack { grid-template-columns: 1fr !important; } .gheir-shell aside { max-width: min(86vw, 248px); } .gheir-shell main { width: 100%; } }
+@media (min-width: 768px) { .gheir-shell[dir="ltr"] aside { left: 0; right: auto; transform: none !important; } .gheir-shell[dir="rtl"] aside { right: 0; left: auto; transform: none !important; } .gheir-shell[dir="ltr"] main { margin-left: 248px; margin-right: 0; } .gheir-shell[dir="rtl"] main { margin-right: 248px; margin-left: 0; } .gheir-shell.sidebar-collapsed[dir="ltr"] main { margin-left: 78px; } .gheir-shell.sidebar-collapsed[dir="rtl"] main { margin-right: 78px; } }
+.gheir-shell[dir="rtl"] .text-left { text-align: right; } .gheir-shell[dir="rtl"] .text-right { text-align: left; }
