@@ -87,7 +87,7 @@ function Shell({ role, section, onSection, children, onRole, notice, language, o
           <p className="mono text-[9px] uppercase tracking-[.18em] text-[#aab5a4]">GHEIR / 2026</p>
         </div>
       </aside>
-      <main className={`flex h-dvh min-h-0 flex-1 flex-col transition-[padding] ${mainOffset}`}>
+      <main className={`flex min-h-0 flex-1 flex-col overflow-hidden transition-[padding] ${mainOffset}`}>
         <div className="mx-auto flex max-w-[1500px] w-full shrink-0 items-center justify-between gap-4 px-5 pt-5 md:px-9">
           <div className="hidden items-center gap-3 md:flex"><span className="h-2 w-2 rounded-full bg-[#6e8b63]" /><span className="mono text-[10px] uppercase tracking-[.16em] text-[#817664]">{t("Register online", "عداد البيع متصل")}</span></div>
           <div className="ms-auto flex items-center gap-2">
@@ -97,7 +97,7 @@ function Shell({ role, section, onSection, children, onRole, notice, language, o
           </div>
         </div>
         {notice && <div className="mx-5 mt-4 flex shrink-0 items-center gap-2 rounded-xl border border-[#d7b884] bg-[#fff5de] px-4 py-3 text-sm text-[#6e4b2e] md:mx-9"><ShieldCheck className="h-4 w-4" />{notice}</div>}
-        <div className="min-h-0 flex-1 overflow-y-auto p-5 md:p-9">{children}</div>
+        <div className="min-h-0 flex-1 overflow-hidden p-5 md:p-9">{children}</div>
       </main>
     </div>
   );
