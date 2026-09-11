@@ -37,7 +37,7 @@ button { cursor: pointer; }
 @keyframes display-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 .scrollbar-warm::-webkit-scrollbar { width: 6px; height: 6px; }
 .scrollbar-warm::-webkit-scrollbar-thumb { background: #c7ae88; border-radius: 999px; }
-@media (max-width: 1023px) { .gheir-shell main { min-width: 0; } .gheir-shell main > div:last-child { overflow-x: hidden; } .display-in { min-width: 0; } .display-in > .grid { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: repeat(2, minmax(0, 1fr)); } .display-in > .grid > section, .display-in > .grid > aside { min-height: 0; } .display-in .product-card { min-width: 0; } }
+@media (max-width: 1023px) { .gheir-shell main { min-width: 0; } .gheir-shell main > div:last-child { overflow-x: hidden; } .display-in { min-width: 0; overflow-y: auto !important; } .display-in > .grid { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: auto auto; overflow: visible !important; } .display-in > .grid > section, .display-in > .grid > aside { min-height: 0; overflow: visible !important; } .display-in .register-products { flex: none; height: min(52dvh, 560px); } .display-in .product-card { min-width: 0; } }
 @media (max-width: 767px) { .mobile-stack { grid-template-columns: 1fr !important; } .gheir-shell aside { max-width: min(86vw, 248px); } .gheir-shell main { width: 100%; } }
 @media (min-width: 768px) { .gheir-shell[dir="ltr"] aside { left: 0; right: auto; transform: none !important; } .gheir-shell[dir="rtl"] aside { right: 0; left: auto; transform: none !important; } }
 .gheir-shell[dir="rtl"] .text-left { text-align: right; } .gheir-shell[dir="rtl"] .text-right { text-align: left; }
@@ -51,3 +51,10 @@ button { cursor: pointer; }
 .gheir-shell .display-in > .grid > aside::-webkit-scrollbar-thumb { background: #c7ae88; border-radius: 999px; }
 @media (max-width: 767px) { .gheir-shell .display-in { padding-bottom: 1rem; } .gheir-shell .display-in > .grid { overflow: visible; } .gheir-shell .display-in > .grid > section, .gheir-shell .display-in > .grid > aside { overflow-y: auto; } }
 .gheir-shell[dir="rtl"] .serif:not(.brand-wordmark) { letter-spacing: 0 !important; }
+
+/* Keep the receipt as tall as its content; only the product catalog scrolls. */
+.gheir-shell .receipt-panel { overflow: visible; }
+.gheir-shell .register-products { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+@media (max-width: 1279px) {
+  .gheir-shell .receipt-panel { overflow: visible; }
+}
