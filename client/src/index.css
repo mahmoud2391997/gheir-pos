@@ -64,7 +64,7 @@ button { cursor: pointer; }
   .gheir-shell .register-layout { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: auto auto !important; flex: none; }
   .gheir-shell .register-layout > section,
   .gheir-shell .register-layout > aside { overflow: visible; }
-  .gheir-shell .register-products { height: 540px; max-height: 540px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .gheir-shell .register-products { height: 540px; max-height: 540px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
   .gheir-shell .receipt-panel { width: 100%; }
 }
 @media (min-width: 1024px) and (max-width: 1279px) {
