@@ -60,7 +60,14 @@ button { cursor: pointer; }
 @media (max-width: 1279px) {
   .gheir-shell .register-products { height: 980px; max-height: 980px; }
 }
-@media (min-width: 768px) and (max-width: 1279px) {
+@media (min-width: 768px) and (max-width: 1023px) {
+  .gheir-shell .register-layout { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: auto auto !important; flex: none; }
+  .gheir-shell .register-layout > section,
+  .gheir-shell .register-layout > aside { overflow: visible; }
+  .gheir-shell .register-products { height: 540px; max-height: 540px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .gheir-shell .receipt-panel { width: 100%; }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
   .gheir-shell .register-layout { grid-template-columns: minmax(0, 1fr) 300px !important; grid-template-rows: auto !important; flex: none; }
   .gheir-shell .register-layout > section,
   .gheir-shell .register-layout > aside { overflow: visible; }
