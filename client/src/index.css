@@ -52,9 +52,20 @@ button { cursor: pointer; }
 @media (max-width: 767px) { .gheir-shell .display-in { padding-bottom: 1rem; } .gheir-shell .display-in > .grid { overflow: visible; } .gheir-shell .display-in > .grid > section, .gheir-shell .display-in > .grid > aside { overflow-y: auto; } }
 .gheir-shell[dir="rtl"] .serif:not(.brand-wordmark) { letter-spacing: 0 !important; }
 
-/* Keep the receipt as tall as its content; only the product catalog scrolls. */
-.gheir-shell .receipt-panel { overflow: visible; }
-.gheir-shell .register-products { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+/* Show a compact nine-product window; scroll the catalog, not the receipt. */
+.gheir-shell .register-layout { align-items: start; }
+.gheir-shell .register-layout > section { height: fit-content; }
+.gheir-shell .register-products { flex: none; min-height: 0; height: 730px; max-height: 730px; overflow-y: auto; overscroll-behavior: contain; }
+.gheir-shell .receipt-panel { align-self: start; height: fit-content; max-height: none; overflow: visible; }
 @media (max-width: 1279px) {
-  .gheir-shell .receipt-panel { overflow: visible; }
+  .gheir-shell .register-products { height: 980px; max-height: 980px; }
+}
+@media (min-width: 768px) and (max-width: 1279px) {
+  .gheir-shell .register-layout { grid-template-columns: minmax(0, 1fr) 300px !important; grid-template-rows: auto !important; flex: none; }
+  .gheir-shell .register-layout > section,
+  .gheir-shell .register-layout > aside { overflow: visible; }
+  .gheir-shell .register-products { height: 980px; max-height: 980px; }
+}
+@media (max-width: 767px) {
+  .gheir-shell .register-products { height: 730px; max-height: 730px; }
 }
