@@ -29,7 +29,7 @@ button { cursor: pointer; }
 ::selection { background: #5c4033; color: #f2ead8; }
 .serif { font-family: var(--app-font-serif); }
 .mono { font-family: var(--app-font-mono); }
-.gheir-shell { min-height: 100dvh; height: 100dvh; overflow: hidden; background: radial-gradient(circle at 84% 0%, rgba(217,199,163,.26), transparent 30rem), #f2ead8; }
+.gheir-shell { min-height: 100dvh; height: auto; overflow-x: hidden; overflow-y: auto; background: radial-gradient(circle at 84% 0%, rgba(217,199,163,.26), transparent 30rem), #f2ead8; }
 .grain::after { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .035; z-index: 40; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E"); }
 .product-art { transition: transform .22s ease; }
 .product-card:hover .product-art { transform: translateY(-4px) rotate(-2deg); }
