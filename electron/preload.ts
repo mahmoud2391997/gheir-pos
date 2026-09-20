@@ -22,6 +22,15 @@ const inventory = {
   syncPending: () =>
     ipcRenderer.invoke("inventory:syncPending") as Promise<{ synced: number; remaining: number }>,
   getDeviceId: () => ipcRenderer.invoke("inventory:getDeviceId") as Promise<string | undefined>,
+  getStatus: () =>
+    ipcRenderer.invoke("inventory:getStatus") as Promise<{
+      ok: boolean;
+      configured: boolean;
+      etag: string | null;
+      lastUpdatedAt: string | null;
+      inventoryVersion: string | null;
+      changed: boolean;
+    }>,
 };
 
 contextBridge.exposeInMainWorld("gheirInventory", inventory);

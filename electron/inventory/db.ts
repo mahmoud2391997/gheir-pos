@@ -52,9 +52,31 @@ export function getDb() {
       detail TEXT,
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS sync_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
     CREATE INDEX IF NOT EXISTS idx_pending_status ON pending_sales(status, next_attempt_at);
   `);
   return db;
+}
+
+export function getMeta(key: string): string | null {
+  const row = getDb().prepare("SELECT value FROM sync_meta WHERE key = ?").get(key) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function setMeta(key: string, value: string | null) {
+  if (value == null) {
+    getDb().prepare("DELETE FROM sync_meta WHERE key = ?").run(key);
+    return;
+  }
+  getDb()
+    .prepare(
+      `INSERT INTO sync_meta (key, value) VALUES (@key, @value)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    )
+    .run({ key, value });
 }
 
 export function writeCachedProducts(products: ProductRecord[]) {

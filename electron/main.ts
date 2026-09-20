@@ -2,7 +2,7 @@ import path from "node:path";
 import { config as loadEnv } from "dotenv";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { countPendingSales, getDb } from "./inventory/db";
-import { enqueueSaleFromRenderer, getProducts, startSyncWorker, stopSyncWorker, syncPending } from "./inventory/sync";
+import { enqueueSaleFromRenderer, fetchPosStatus, getProducts, startSyncWorker, stopSyncWorker, syncPending } from "./inventory/sync";
 import { loadSecrets, secretsConfigured } from "./secrets";
 
 loadEnv();
@@ -15,11 +15,12 @@ let mainWindow: BrowserWindow | null = null;
 
 function registerIpc() {
   ipcMain.handle("inventory:isConfigured", () => secretsConfigured());
-  ipcMain.handle("inventory:getProducts", async () => getProducts());
+  ipcMain.handle("inventory:getProducts", async () => getProducts({ preferDelta: true }));
   ipcMain.handle("inventory:enqueueSale", (_event, sale) => enqueueSaleFromRenderer(sale));
   ipcMain.handle("inventory:syncPending", async () => syncPending());
   ipcMain.handle("inventory:getDeviceId", () => loadSecrets().deviceId);
   ipcMain.handle("inventory:pendingCount", () => countPendingSales());
+  ipcMain.handle("inventory:getStatus", async () => fetchPosStatus());
 }
 
 async function createWindow() {

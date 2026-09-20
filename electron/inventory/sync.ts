@@ -4,10 +4,12 @@ import {
   appendSyncLog,
   countPendingSales,
   enqueueSale,
+  getMeta,
   listPendingSales,
   markSaleAttemptFailed,
   markSaleSynced,
   readCachedProducts,
+  setMeta,
   writeCachedProducts,
   type PendingSaleRow,
 } from "./db";
@@ -15,20 +17,120 @@ import { applyPendingToStock, backoffMs, mapRemoteProducts, type RemoteProduct }
 
 export { applyPendingToStock, mapRemoteProducts, pendingQuantityBySku } from "./mapping";
 
-async function fetchProductsFromApi(): Promise<ProductRecord[]> {
+const ETAG_KEY = "remote_etag";
+const LAST_UPDATED_KEY = "remote_last_updated_at";
+
+export type PosStatus = {
+  ok: boolean;
+  configured: boolean;
+  etag: string | null;
+  lastUpdatedAt: string | null;
+  inventoryVersion: string | null;
+  changed: boolean;
+};
+
+function mergeBySku(existing: ProductRecord[], incoming: ProductRecord[]) {
+  const bySku = new Map(existing.map((p) => [p.baseSku, p]));
+  for (const product of incoming) {
+    if (!product.baseSku) continue;
+    bySku.set(product.baseSku, product);
+  }
+  return Array.from(bySku.values());
+}
+
+export async function fetchPosStatus(): Promise<PosStatus> {
+  const secrets = loadSecrets();
+  const configured = secretsConfigured(secrets);
+  if (!configured) {
+    return { ok: false, configured: false, etag: null, lastUpdatedAt: null, inventoryVersion: null, changed: false };
+  }
+  try {
+    const response = await fetch(`${secrets.websiteApiBaseUrl}/api/pos/status`, {
+      headers: { "x-pos-key": secrets.posApiKey },
+    });
+    const etag = response.headers.get("etag");
+    const json = (await response.json().catch(() => ({}))) as {
+      ok?: boolean;
+      lastUpdatedAt?: string | null;
+      inventoryVersion?: string | null;
+    };
+    if (!response.ok) {
+      return { ok: false, configured: true, etag: null, lastUpdatedAt: null, inventoryVersion: null, changed: false };
+    }
+    if (json.lastUpdatedAt) {
+      const previous = getMeta(LAST_UPDATED_KEY);
+      const stored = getMeta(ETAG_KEY);
+      const changed = Boolean(etag && etag !== stored);
+      if (!changed || !previous) setMeta(LAST_UPDATED_KEY, json.lastUpdatedAt);
+    }
+    const stored = getMeta(ETAG_KEY);
+    return {
+      ok: json.ok !== false,
+      configured: true,
+      etag,
+      lastUpdatedAt: json.lastUpdatedAt ?? null,
+      inventoryVersion: json.inventoryVersion ?? null,
+      changed: Boolean(etag && etag !== stored),
+    };
+  } catch (error) {
+    appendSyncLog(null, "status_failed", error instanceof Error ? error.message : String(error));
+    return { ok: false, configured: true, etag: null, lastUpdatedAt: null, inventoryVersion: null, changed: false };
+  }
+}
+
+async function fetchProductsFromApi(options?: { force?: boolean; preferDelta?: boolean }): Promise<ProductRecord[]> {
   const secrets = loadSecrets();
   if (!secretsConfigured(secrets)) throw new Error("POS secrets are not configured");
-  const response = await fetch(`${secrets.websiteApiBaseUrl}/api/pos/products`, {
-    headers: { "x-pos-key": secrets.posApiKey },
-  });
-  const json = (await response.json().catch(() => ({}))) as { error?: string; products?: RemoteProduct[] };
+
+  const cached = readCachedProducts();
+  const storedEtag = getMeta(ETAG_KEY);
+  const lastUpdatedAt = getMeta(LAST_UPDATED_KEY);
+  const preferDelta = Boolean(options?.preferDelta && lastUpdatedAt && cached.length && !options?.force);
+
+  if (preferDelta && lastUpdatedAt) {
+    const response = await fetch(
+      `${secrets.websiteApiBaseUrl}/api/pos/products?since=${encodeURIComponent(lastUpdatedAt)}`,
+      { headers: { "x-pos-key": secrets.posApiKey } },
+    );
+    const etag = response.headers.get("etag");
+    const json = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      products?: RemoteProduct[];
+      asOf?: string;
+    };
+    if (!response.ok) throw new Error(json.error ?? "Unable to load products");
+    const incoming = mapRemoteProducts(Array.isArray(json.products) ? json.products : []);
+    const merged = mergeBySku(cached, incoming);
+    writeCachedProducts(merged);
+    if (etag) setMeta(ETAG_KEY, etag);
+    if (json.asOf) setMeta(LAST_UPDATED_KEY, json.asOf);
+    return merged;
+  }
+
+  const headers: Record<string, string> = { "x-pos-key": secrets.posApiKey };
+  if (!options?.force && storedEtag) headers["If-None-Match"] = storedEtag;
+
+  const response = await fetch(`${secrets.websiteApiBaseUrl}/api/pos/products`, { headers });
+  if (response.status === 304) return cached;
+
+  const etag = response.headers.get("etag");
+  const json = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    products?: RemoteProduct[];
+    asOf?: string;
+  };
   if (!response.ok) throw new Error(json.error ?? "Unable to load products");
-  const products = Array.isArray(json.products) ? mapRemoteProducts(json.products) : [];
+  const products = mapRemoteProducts(Array.isArray(json.products) ? json.products : []);
   writeCachedProducts(products);
+  if (etag) setMeta(ETAG_KEY, etag);
+  if (json.asOf) setMeta(LAST_UPDATED_KEY, json.asOf);
   return products;
 }
 
-export async function getProducts(): Promise<{ products: ProductRecord[]; pendingCount: number; configured: boolean }> {
+export async function getProducts(options?: {
+  force?: boolean;
+  preferDelta?: boolean;
+}): Promise<{ products: ProductRecord[]; pendingCount: number; configured: boolean }> {
   const configured = secretsConfigured();
   const pending = listPendingSales();
   const pendingCount = countPendingSales();
@@ -36,7 +138,11 @@ export async function getProducts(): Promise<{ products: ProductRecord[]; pendin
     return { products: applyPendingToStock(readCachedProducts(), pending), pendingCount, configured: false };
   }
   try {
-    const remote = await fetchProductsFromApi();
+    const status = await fetchPosStatus();
+    const shouldFetch = Boolean(options?.force || status.changed || !readCachedProducts().length);
+    const remote = shouldFetch
+      ? await fetchProductsFromApi({ force: options?.force, preferDelta: options?.preferDelta ?? status.changed })
+      : readCachedProducts();
     return { products: applyPendingToStock(remote, pending), pendingCount, configured: true };
   } catch (error) {
     appendSyncLog(null, "products_fetch_failed", error instanceof Error ? error.message : String(error));
@@ -108,7 +214,11 @@ let syncTimer: NodeJS.Timeout | null = null;
 export function startSyncWorker(intervalMs = 15_000) {
   if (syncTimer) return;
   const tick = () => {
-    void syncPending().catch((error) => {
+    void (async () => {
+      await syncPending();
+      const status = await fetchPosStatus();
+      if (status.changed) await getProducts({ preferDelta: true });
+    })().catch((error) => {
       appendSyncLog(null, "sync_worker_error", error instanceof Error ? error.message : String(error));
     });
   };
