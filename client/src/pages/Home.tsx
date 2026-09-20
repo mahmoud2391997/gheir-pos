@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Eye, Pencil, ArrowUpRight, Banknote, BarChart3, Box
 import {
   appBrand, appFooterMeta, appSections, architectureCopy, asPositiveInt, buildReceiptMarkup, categories, checkoutNote, colorSwatch, createDemoSale, createGeneratedProductSku, demoProducts, demoRoleStorageKey, demoSales, demoTaxRate, downloadCsv, emptyCatalogCopy, emptyOrdersCopy, formatDate, formatMoney, formatTime, generateColorCode, generateFamilyCode, getCategoryColor, getRoleGreeting, hardwareNotes, makeDashboard, noCartLabel, noPermissionCopy, openPrintWindow, paymentDetails, paymentLabels, persistDemoProducts, persistDemoSales, printerPaper, productCsv, productCsvTemplate, productSearchText, parseProductCsv, readDemoProducts, readDemoSales, initialsForRole, roleCanAccess, roleCopy, safeTrim, scannerFlowCopy, scannerPlaceholder, skuFlowCopy, skuLabelCsv, skuPatternDescription, stockLabel, stockTone, storeAddress, storeName, summarizeCart, toCsvFilename, UserRole, PaymentMethod, AppSection, ProductRecord, SaleRecord,
 } from "@shared/sku";
+import { applyPendingToStock, deviceId, enqueuePendingSale, fetchRemoteProducts, readCachedProducts, readPendingSales, remoteEnabled, syncPendingSales, writeCachedProducts } from "@/_core/remoteInventory";
 
 type CartLine = { product: ProductRecord; quantity: number };
 type L = (en: string, ar: string) => string;
@@ -49,7 +50,7 @@ function ProductCard({ product, onAdd, isArabic }: { product: ProductRecord; onA
 
 function NavIcon({ section }: { section: AppSection }) { const Icon = section === "register" ? LayoutDashboard : section === "orders" ? History : section === "catalog" ? Package : section === "reports" ? BarChart3 : Tags; return <Icon className="h-[17px] w-[17px]" />; }
 
-function Shell({ role, section, onSection, children, onRole, notice, language, onLanguage }: { role: UserRole; section: AppSection; onSection: (section: AppSection) => void; children: React.ReactNode; onRole: (role: UserRole) => void; notice: string; language: "en" | "ar"; onLanguage: (language: "en" | "ar") => void }) {
+function Shell({ role, section, onSection, children, onRole, notice, language, onLanguage, connection }: { role: UserRole; section: AppSection; onSection: (section: AppSection) => void; children: React.ReactNode; onRole: (role: UserRole) => void; notice: string; language: "en" | "ar"; onLanguage: (language: "en" | "ar") => void; connection: { ok: boolean; label: string } }) {
   const [navOpen, setNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const isArabic = language === "ar";
@@ -89,7 +90,10 @@ function Shell({ role, section, onSection, children, onRole, notice, language, o
       </aside>
       <main className={`flex min-h-0 flex-1 flex-col overflow-hidden transition-[padding] ${mainOffset}`}>
         <div className="mx-auto flex max-w-[1500px] w-full shrink-0 items-center justify-between gap-4 px-5 pt-5 md:px-9">
-          <div className="hidden items-center gap-3 md:flex"><span className="h-2 w-2 rounded-full bg-[#6e8b63]" /><span className="mono text-[10px] uppercase tracking-[.16em] text-[#817664]">{t("Register online", "عداد البيع متصل")}</span></div>
+          <div className="hidden items-center gap-3 md:flex">
+            <span className={`h-2 w-2 rounded-full ${connection.ok ? "bg-[#6e8b63]" : "bg-[#9a5537]"}`} />
+            <span className="mono text-[10px] uppercase tracking-[.16em] text-[#817664]">{connection.label}</span>
+          </div>
           <div className="ms-auto flex items-center gap-2">
             <span className="mono hidden text-[9px] uppercase tracking-[.14em] text-[#817664] sm:inline">{t("Preview role", "معاينة الدور")}</span>
             <div className="flex rounded-full border border-[#cdbb9c] bg-[#f7f0e3] p-1">{(["cashier", "admin"] as UserRole[]).map((item) => <button key={item} onClick={() => onRole(item)} className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${role === item ? "bg-[#2f3e34] text-[#f2ead8]" : "text-[#71675b] hover:text-[#2f3e34]"}`}>{isArabic ? roleLabelAr[item] : roleCopy[item].label}</button>)}</div>
@@ -103,7 +107,7 @@ function Shell({ role, section, onSection, children, onRole, notice, language, o
   );
 }
 
-function Register({ products, sales, onSale, role, isArabic, receiptLogo }: { products: ProductRecord[]; sales: SaleRecord[]; onSale: (sale: SaleRecord, productIds: number[]) => void; role: UserRole; isArabic: boolean; receiptLogo: string }) {
+function Register({ products, sales, onSale, role, isArabic, receiptLogo }: { products: ProductRecord[]; sales: SaleRecord[]; onSale: (sale: SaleRecord, lines: CartLine[]) => void; role: UserRole; isArabic: boolean; receiptLogo: string }) {
   const [search, setSearch] = useState(""); const [category, setCategory] = useState("All"); const [scanValue, setScanValue] = useState(""); const [cart, setCart] = useState<Record<number, number>>({}); const [payment, setPayment] = useState<PaymentMethod>("cash"); const [lastSale, setLastSale] = useState<SaleRecord | null>(null); const [discount, setDiscount] = useState(""); const [tendered, setTendered] = useState(""); const [manualProducts, setManualProducts] = useState<ProductRecord[]>([]); const [manualName, setManualName] = useState(""); const [manualCost, setManualCost] = useState(""); const scanRef = useRef<HTMLInputElement>(null);
   const t = makeT(isArabic);
   const money = (value: number) => formatMoney(value, isArabic ? "ar-EG" : "en-EG");
@@ -120,7 +124,7 @@ function Register({ products, sales, onSale, role, isArabic, receiptLogo }: { pr
   const updateQuantity = (product: ProductRecord, direction: number) => setCart((current) => { const quantity = Math.max(0, Math.min(product.stock, (current[product.id] ?? 0) + direction)); const next = { ...current }; if (quantity) next[product.id] = quantity; else delete next[product.id]; return next; });
   const addManualItem = () => { const itemName = safeTrim(manualName); const itemCost = amount(manualCost); if (!itemName || itemCost <= 0) return; const manual: ProductRecord = { id: Date.now() * -1, name: itemName, arabicName: null, englishName: itemName, category: "Manual", categoryAr: null, baseSku: "MANUAL", price: itemCost, stock: 9999, color: "Custom", colorArabic: null, colorCode: "CSTM", shape: "rect" }; setManualProducts((current) => [...current, manual]); setCart((current) => ({ ...current, [manual.id]: 1 })); setManualName(""); setManualCost(""); };
   const handleScan = () => { const value = scanValue.trim().toLowerCase(); if (!value) return; const match = products.find((product) => productSearchText(product).includes(value) || `${product.baseSku}-${product.colorCode}`.toLowerCase() === value); if (match) { addProduct(match); setScanValue(""); } else setSearch(scanValue); };
-  const completeSale = () => { if (!cartItems.length) return; const sale = createDemoSale(cartItems, payment, { discount: discountValue, tendered: tenderedValue || undefined }); onSale(sale, cartItems.map((item) => item.product.id)); setLastSale(sale); setCart({}); setDiscount(""); setTendered(""); setManualProducts([]); setManualName(""); setManualCost(""); };
+  const completeSale = () => { if (!cartItems.length) return; const sale = createDemoSale(cartItems, payment, { discount: discountValue, tendered: tenderedValue || undefined }); onSale(sale, cartItems); setLastSale(sale); setCart({}); setDiscount(""); setTendered(""); setManualProducts([]); setManualName(""); setManualCost(""); };
   return <div className="display-in flex min-h-full flex-col"><div className="register-layout mt-6 grid min-h-0 flex-none items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]"><section className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-5 sm:p-6"><div className="flex shrink-0 flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">{t("The collection", "التشكيلة")}</p><h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">{t("Choose a piece", "اختر قطعة")}</h2></div><div className="relative w-full sm:w-64"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#817664]" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] ps-9 pe-3 text-sm outline-none ring-[#5c4033] focus:ring-2" placeholder={t("Search name, SKU…", "ابحث بالاسم أو الكود…")} /></div></div><div className="mt-5 flex shrink-0 gap-2 overflow-auto pb-1">{categories.map((item) => <button key={item} onClick={() => setCategory(item)} className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition ${category === item ? "bg-[#2f3e34] text-[#f2ead8]" : "bg-[#eadfc9] text-[#71675b] hover:bg-[#dfd0b5]"}`}>{isArabic ? categoriesAr[item] || item : item}</button>)}</div><div className="register-products scrollbar-warm mt-5 grid min-h-0 flex-1 content-start grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4 overflow-y-auto py-3 pe-3">{filtered.map((product) => <ProductCard key={product.id} product={product} onAdd={() => addProduct(product)} isArabic={isArabic} />)}</div>{!filtered.length && <div className="flex min-h-52 flex-col items-center justify-center text-center text-sm text-[#817664]"><Search className="mb-2 h-5 w-5" />{t("No matching pieces. Try a different search.", "لا توجد قطع مطابقة. جرّب بحثاً مختلفاً.")}</div>}</section><aside className="receipt-panel flex min-h-0 flex-col overflow-visible rounded-2xl border border-[#cdbb9c] bg-[#2f3e34] p-5 text-[#f2ead8]"><div className="flex shrink-0 items-start justify-between"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#bfc8b9]">{t("Counter / active", "العداد / نشط")}</p><h2 className="serif mt-1 text-2xl font-semibold">{t("Current order", "الطلب الحالي")}</h2></div><span className="rounded-full bg-[#415045] px-2 py-1 mono text-[9px] text-[#d9c7a3]">{linesLabel}</span></div><div className="mt-5 shrink-0 rounded-xl border border-[#526156] bg-[#26352c] p-3"><div className="flex items-center gap-2"><ScanLine className="h-4 w-4 text-[#d9c7a3]" /><input ref={scanRef} value={scanValue} onChange={(event) => setScanValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") handleScan(); }} className="min-w-0 flex-1 bg-transparent text-sm text-[#f2ead8] outline-none placeholder:text-[#92a093]" placeholder={t(scannerPlaceholder, "امسح الكود أو اكتب اسم المنتج…")} /><kbd className="rounded bg-[#415045] px-1.5 py-1 mono text-[9px] text-[#bfc8b9]">F2</kbd></div></div><div className="scrollbar-warm mt-5 min-h-0 flex-1 space-y-3 overflow-auto">{cartItems.length ? cartItems.map(({ product, quantity }) => <div key={product.id} className="flex items-center gap-3 border-b border-[#526156] pb-3"><ProductArt product={product} compact /><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{product.arabicName || product.name}</p><p className="mt-0.5 text-xs text-[#bfc8b9]">{money(product.price)} · {product.color}{product.colorArabic ? ` · ${product.colorArabic}` : ""}</p><div className="mt-2 flex items-center gap-2"><button onClick={() => updateQuantity(product, -1)} className="rounded bg-[#415045] p-1 hover:bg-[#526156]" aria-label={t("Decrease quantity", "تقليل الكمية")}><Minus className="h-3 w-3" /></button><span className="mono w-5 text-center text-xs">{quantity}</span><button onClick={() => updateQuantity(product, 1)} className="rounded bg-[#415045] p-1 hover:bg-[#526156]" aria-label={t("Increase quantity", "زيادة الكمية")}><Plus className="h-3 w-3" /></button></div></div><button onClick={() => updateQuantity(product, -quantity)} className="self-start text-[#aab5a4] hover:text-[#f2ead8]" aria-label={t("Remove item", "إزالة الصنف")}><Trash2 className="h-4 w-4" /></button></div>) : <div className="flex h-full min-h-[180px] flex-col items-center justify-center text-center text-sm text-[#9eaa9f]"><ScanLine className="mb-3 h-7 w-7 text-[#d9c7a3]" /><p>{t(noCartLabel, "عدادك فارغ. امسح أو اختر قطعة للبدء.")}</p><p className="mt-2 text-xs text-[#7f9183]">{t(scannerFlowCopy, "امسح كودًا فريدًا للتعرف على النسخة الفيزيائية عند الدفع.")}</p></div>}</div><div className="mt-4 shrink-0 rounded-xl border border-[#526156] bg-[#26352c] p-3"><div className="flex items-center justify-between gap-2 text-[11px] font-bold text-[#bfc8b9]"><span>{t("Add a line manually", "أضف صنفاً يدوياً")}</span></div><div className="mt-2 flex items-center gap-2"><input value={manualName} onChange={(event) => setManualName(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-[#526156] bg-[#f2ead8] px-2 py-1.5 text-sm text-[#2f3e34] outline-none focus:ring-2 focus:ring-[#d9c7a3]" placeholder={t("Item name", "اسم الصنف")} aria-label={t("Manual item name", "اسم الصنف اليدوي")} /><input type="number" inputMode="decimal" min="0" value={manualCost} onChange={(event) => setManualCost(event.target.value)} className="w-24 rounded-lg border border-[#526156] bg-[#f2ead8] px-2 py-1.5 text-end text-sm text-[#2f3e34] outline-none focus:ring-2 focus:ring-[#d9c7a3]" placeholder={t("Cost", "التكلفة")} aria-label={t("Manual item cost", "تكلفة الصنف اليدوي")} /><button onClick={addManualItem} className="shrink-0 rounded-lg bg-[#f2ead8] px-2.5 py-1.5 text-xs font-bold text-[#2f3e34] hover:bg-white" aria-label={t("Add item", "إضافة صنف")}><Plus className="h-4 w-4" /></button></div></div><div className="mt-4 shrink-0 space-y-2.5 border-t border-[#526156] pt-4 text-sm"><div className="flex items-center justify-between text-[#bfc8b9]"><span>{t("Subtotal", "المجموع الفرعي")}</span><span>{money(subtotal)}</span></div><div className="flex items-center justify-between gap-3 text-[#bfc8b9]"><span>{t("Discount", "الخصم")}</span><input type="number" inputMode="decimal" min="0" value={discount} onChange={(event) => setDiscount(event.target.value)} className="h-8 w-24 rounded-lg border border-[#526156] bg-[#26352c] px-2 text-end text-sm text-[#f2ead8] outline-none focus:ring-2 focus:ring-[#d9c7a3]" placeholder="0" aria-label={t("Discount amount", "مبلغ الخصم")} /></div><div className="flex justify-between pt-2 text-lg font-bold"><span>{t("Total", "الإجمالي")}</span><span className="serif text-2xl text-[#d9c7a3]">{money(total)}</span></div>{change > 0 && <div className="flex justify-between text-[#b8d6ae]"><span>{t("Change", "الباقي")}</span><span className="font-bold">{money(change)}</span></div>}</div><div className="mt-5 grid shrink-0 grid-cols-3 gap-2">{(["cash", "card", "instapay"] as PaymentMethod[]).map((method) => { const Icon = method === "cash" ? Banknote : method === "card" ? CreditCard : QrCode; return <button key={method} onClick={() => setPayment(method)} className={`rounded-xl border px-2 py-2 text-start transition ${payment === method ? "border-[#d9c7a3] bg-[#415045]" : "border-[#526156] hover:bg-[#415045]"}`}><Icon className="mb-2 h-4 w-4 text-[#d9c7a3]" /><span className="block text-xs font-bold">{isArabic ? paymentAr[method].label : paymentLabels[method]}</span><span className="mt-1 block text-[9px] text-[#aab5a4]">{isArabic ? paymentAr[method].detail : paymentDetails[method]}</span></button>; })}</div><label className="mt-4 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[#526156] bg-[#26352c] px-3 py-2.5"><span className="mono text-[9px] uppercase tracking-[.14em] text-[#bfc8b9]">{t("Received (manual)", "المستلم (يدوي)")}</span><input type="number" inputMode="decimal" min="0" value={tendered} onChange={(event) => setTendered(event.target.value)} className="min-w-0 flex-1 bg-transparent text-end text-sm text-[#f2ead8] outline-none placeholder:text-[#92a093]" placeholder="0" aria-label={t("Received amount", "المبلغ المستلم")} /></label><button disabled={!cartItems.length} onClick={completeSale} className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#f2ead8] px-4 py-3 text-sm font-extrabold text-[#2f3e34] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"><Check className="h-4 w-4" /> {t("Complete sale", "إتمام البيع")} {isArabic ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</button>{lastSale && <div className="mt-4 rounded-xl border border-[#6e8b63]/60 bg-[#415045] p-3"><div className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 text-[#b8d6ae]" /><div className="flex-1"><p className="text-sm font-bold">{t("Sale complete", "تم البيع")}</p><p className="mt-1 text-xs text-[#bfc8b9]">{lastSale.receiptNumber} · {money(lastSale.total)}</p></div><button onClick={() => openPrintWindow(t("GHEIR receipt", "إيصال غيّر"), buildReceiptMarkup(lastSale, receiptLogo))} className="rounded-lg bg-[#f2ead8] px-2.5 py-1.5 text-xs font-bold text-[#2f3e34]">{t("Print", "طباعة")}</button></div></div>}<p className="mt-4 shrink-0 text-[10px] leading-relaxed text-[#879488]">{t(checkoutNote, "تُدخل الخصومات والضرائب يدوياً عند العداد.")}</p></aside></div></div>;
 }
 
@@ -247,20 +251,116 @@ function SkuLab({ products, isArabic }: { products: ProductRecord[]; isArabic: b
 
 export default function Home() {
   const [role, setRole] = useState<UserRole>("cashier"); const [section, setSection] = useState<AppSection>("register"); const [language, setLanguage] = useState<"en" | "ar">("en"); const [products, setProducts] = useState<ProductRecord[]>(demoProducts); const [sales, setSales] = useState<SaleRecord[]>(demoSales); const [notice, setNotice] = useState("");
+  const [pendingCount, setPendingCount] = useState(0);
+  const [online, setOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
   const isArabic = language === "ar";
   const t = makeT(isArabic);
   const [receiptLogo, setReceiptLogo] = useState("");
   useEffect(() => { let active = true; fetch("/gheir-brand-lockup.png").then((response) => response.blob()).then((blob) => new Promise<string>((resolve) => { const reader = new FileReader(); reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : ""); reader.readAsDataURL(blob); })).then((logoUri) => { if (active) setReceiptLogo(logoUri); }).catch(() => {}); return () => { active = false; }; }, []);
-  useEffect(() => { try { const storedRole = localStorage.getItem(demoRoleStorageKey) as UserRole | null; if (storedRole === "cashier" || storedRole === "admin") setRole(storedRole); const storedLanguage = localStorage.getItem("gheir-language"); if (storedLanguage === "en" || storedLanguage === "ar") setLanguage(storedLanguage); setProducts(readDemoProducts()); setSales(readDemoSales()); } catch {} }, []);
+  useEffect(() => { try { const storedRole = localStorage.getItem(demoRoleStorageKey) as UserRole | null; if (storedRole === "cashier" || storedRole === "admin") setRole(storedRole); const storedLanguage = localStorage.getItem("gheir-language"); if (storedLanguage === "en" || storedLanguage === "ar") setLanguage(storedLanguage); if (!remoteEnabled()) { setProducts(readDemoProducts()); } setSales(readDemoSales()); setPendingCount(readPendingSales().length); } catch {} }, []);
+  useEffect(() => {
+    if (!remoteEnabled()) return;
+    let cancelled = false;
+    const refreshPending = () => setPendingCount(readPendingSales().length);
+    const applyRemote = (remote: ProductRecord[]) => {
+      writeCachedProducts(remote);
+      setProducts(applyPendingToStock(remote, readPendingSales()));
+      refreshPending();
+    };
+    const loadRemote = async () => {
+      const cached = readCachedProducts();
+      if (cached.length && !cancelled) setProducts(applyPendingToStock(cached, readPendingSales()));
+      try {
+        const remote = await fetchRemoteProducts();
+        if (!cancelled) applyRemote(remote);
+      } catch {
+        /* keep cache / last known catalog */
+      }
+    };
+    const flush = async () => {
+      const result = await syncPendingSales();
+      if (cancelled) return;
+      refreshPending();
+      if (result.synced > 0) {
+        try {
+          const remote = await fetchRemoteProducts();
+          if (!cancelled) applyRemote(remote);
+        } catch {
+          /* leave optimistic stock */
+        }
+      }
+    };
+    void loadRemote().then(() => flush());
+    const onOnline = () => { setOnline(true); void flush(); };
+    const onOffline = () => setOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    const timer = window.setInterval(() => { void flush(); }, 20_000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      window.clearInterval(timer);
+    };
+  }, []);
   const dashboard = useMemo(() => makeDashboard(sales, products), [products, sales]);
   useEffect(() => { document.documentElement.dir = language === "ar" ? "rtl" : "ltr"; document.documentElement.lang = language; document.title = t("GHEIR POS System", "نظام نقاط البيع لغيّر"); }, [language]);
   const handleLanguage = (nextLanguage: "en" | "ar") => { setLanguage(nextLanguage); try { localStorage.setItem("gheir-language", nextLanguage); } catch {} };
   const handleRole = (nextRole: UserRole) => { setRole(nextRole); try { localStorage.setItem(demoRoleStorageKey, nextRole); } catch {} if (nextRole === "cashier" && (section === "catalog" || section === "sku" || section === "reports")) setSection("register"); setNotice(nextRole === "admin" ? t("Admin preview active · Full store controls.", "معاينة المدير مفعلة · تحكم كامل بالمتجر.") : t("Cashier preview active · Register + orders.", "معاينة أمين الصندوق مفعلة · نقطة البيع والطلبات.")); window.setTimeout(() => setNotice(""), 2800); };
   const handleSection = (nextSection: AppSection) => { if (!roleCanAccess(role, nextSection)) { setNotice(t(noPermissionCopy, "دور أمين الصندوق يتيح البيع وعرض الطلبات. اطلب من المدير إدارة المنتجات أو الملصقات.")); window.setTimeout(() => setNotice(""), 2800); return; } setSection(nextSection); };
-  const handleSale = (sale: SaleRecord, productIds: number[]) => { const nextSales = [sale, ...sales]; const nextProducts = products.map((product) => productIds.includes(product.id) ? { ...product, stock: Math.max(0, product.stock - 1) } : product); setSales(nextSales); setProducts(nextProducts); persistDemoSales(nextSales); persistDemoProducts(nextProducts); };
+  const handleSale = (sale: SaleRecord, lines: CartLine[]) => {
+    const qtyById = new Map(lines.map((line) => [line.product.id, line.quantity]));
+    const nextSales = [sale, ...sales];
+    const nextProducts = products.map((product) => {
+      const qty = qtyById.get(product.id);
+      return qty ? { ...product, stock: Math.max(0, product.stock - qty) } : product;
+    });
+    setSales(nextSales);
+    setProducts(nextProducts);
+    persistDemoSales(nextSales);
+    persistDemoProducts(nextProducts);
+
+    if (!remoteEnabled()) return;
+    const items = lines
+      .filter((line) => line.product.baseSku && line.product.baseSku !== "MANUAL")
+      .map((line) => ({
+        sku: line.product.baseSku,
+        quantity: line.quantity,
+        unitPrice: line.product.price,
+        name: line.product.name,
+      }));
+    if (!items.length) return;
+    enqueuePendingSale({
+      clientSaleId: sale.receiptNumber,
+      deviceId: deviceId(),
+      createdAt: sale.createdAt,
+      paymentMethod: sale.paymentMethod,
+      items,
+    });
+    setPendingCount(readPendingSales().length);
+    void syncPendingSales().then(async (result) => {
+      setPendingCount(result.remaining);
+      if (result.synced <= 0) return;
+      try {
+        const remote = await fetchRemoteProducts();
+        writeCachedProducts(remote);
+        setProducts(applyPendingToStock(remote, readPendingSales()));
+      } catch {
+        /* keep local stock */
+      }
+    });
+  };
   const handleAddProduct = (product: ProductRecord) => { const nextProducts = [...products, product]; setProducts(nextProducts); persistDemoProducts(nextProducts); setNotice(`${product.arabicName || product.name} ${t("added to the product shelf.", "تمت إضافته إلى رف المنتجات.")}`); window.setTimeout(() => setNotice(""), 2800); };
   const handleUpdateProduct = (product: ProductRecord) => { const nextProducts = products.map((item) => item.id === product.id ? { ...product } : item); setProducts(nextProducts); persistDemoProducts(nextProducts); setNotice(`${product.arabicName || product.name} ${t("updated.", "تم التحديث.")}`); window.setTimeout(() => setNotice(""), 2800); };
   const handleDeleteProduct = (id: number) => { const target = products.find((item) => item.id === id); const nextProducts = products.filter((item) => item.id !== id); setProducts(nextProducts); persistDemoProducts(nextProducts); setNotice(target ? `${target.arabicName || target.name} ${t("removed from the shelf.", "أُزيل من الرف.")}` : t("Product removed.", "تم حذف المنتج.")); window.setTimeout(() => setNotice(""), 2800); };
   const content = section === "register" ? <Register products={products} sales={sales} onSale={handleSale} role={role} isArabic={isArabic} receiptLogo={receiptLogo} /> : section === "orders" ? <Orders sales={sales} isArabic={isArabic} receiptLogo={receiptLogo} /> : section === "catalog" ? <Catalog products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} isArabic={isArabic} /> : section === "sku" ? <SkuLab products={products} isArabic={isArabic} /> : <Reports products={products} sales={sales} isArabic={isArabic} />;
-  return <Shell role={role} section={section} onSection={handleSection} onRole={handleRole} notice={notice} language={language} onLanguage={handleLanguage}><div className="mb-5 flex items-center justify-between gap-3"><div className="flex items-center gap-1 rounded-full border border-[#cdbb9c] bg-[#eadfc9] p-1 text-[10px]"><button type="button" onClick={() => handleLanguage("en")} className={`rounded-full px-2 py-1 font-bold ${language === "en" ? "bg-[#2f3e34] text-[#f2ead8]" : "text-[#817664]"}`}>EN</button><button type="button" onClick={() => handleLanguage("ar")} className={`rounded-full px-2 py-1 font-bold ${language === "ar" ? "bg-[#2f3e34] text-[#f2ead8]" : "text-[#817664]"}`}>عربي</button></div><div className="hidden items-center gap-2 text-xs text-[#817664] md:flex"><span className="mono text-[9px] uppercase tracking-[.14em]">{isArabic ? roleLabelAr[role] : roleCopy[role].label}</span>{isArabic ? <ChevronLeft className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}<span>{isArabic ? greetingAr[role] : getRoleGreeting(role)}</span></div><div className="ms-auto flex items-center gap-2 rounded-full border border-[#cdbb9c] bg-[#eadfc9] px-3 py-2 text-[10px] text-[#71675b]"><span className="h-1.5 w-1.5 rounded-full bg-[#6e8b63]" /> {appFooterMeta}</div></div>{content}<footer className="mt-9 flex flex-col justify-between gap-3 border-t border-[#cdbb9c] pt-4 text-[10px] text-[#817664] sm:flex-row"><span>{t(architectureCopy, "Node.js + tRPC + Drizzle الآن؛ غلاف Electron لتطبيق سطح المكتب لاحقاً.")}</span><span>{storeAddress} · {t(printerPaper, "80مم حراري")}</span></footer></Shell>;
+  const connectionLabel = !remoteEnabled()
+    ? t("Local catalog", "كتالوج محلي")
+    : !online
+      ? t("Offline · queued sales", "غير متصل · مبيعات معلّقة")
+      : pendingCount > 0
+        ? t(`Sync pending · ${pendingCount}`, `مزامنة معلّقة · ${pendingCount}`)
+        : t("Register online", "عداد البيع متصل");
+  const connection = { ok: !remoteEnabled() || (online && pendingCount === 0), label: connectionLabel };
+  return <Shell role={role} section={section} onSection={handleSection} onRole={handleRole} notice={notice} language={language} onLanguage={handleLanguage} connection={connection}><div className="mb-5 flex items-center justify-between gap-3"><div className="flex items-center gap-1 rounded-full border border-[#cdbb9c] bg-[#eadfc9] p-1 text-[10px]"><button type="button" onClick={() => handleLanguage("en")} className={`rounded-full px-2 py-1 font-bold ${language === "en" ? "bg-[#2f3e34] text-[#f2ead8]" : "text-[#817664]"}`}>EN</button><button type="button" onClick={() => handleLanguage("ar")} className={`rounded-full px-2 py-1 font-bold ${language === "ar" ? "bg-[#2f3e34] text-[#f2ead8]" : "text-[#817664]"}`}>عربي</button></div><div className="hidden items-center gap-2 text-xs text-[#817664] md:flex"><span className="mono text-[9px] uppercase tracking-[.14em]">{isArabic ? roleLabelAr[role] : roleCopy[role].label}</span>{isArabic ? <ChevronLeft className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}<span>{isArabic ? greetingAr[role] : getRoleGreeting(role)}</span></div><div className="ms-auto flex items-center gap-2 rounded-full border border-[#cdbb9c] bg-[#eadfc9] px-3 py-2 text-[10px] text-[#71675b]"><span className="h-1.5 w-1.5 rounded-full bg-[#6e8b63]" /> {appFooterMeta}</div></div>{content}<footer className="mt-9 flex flex-col justify-between gap-3 border-t border-[#cdbb9c] pt-4 text-[10px] text-[#817664] sm:flex-row"><span>{t(architectureCopy, "Node.js + tRPC + Drizzle الآن؛ غلاف Electron لتطبيق سطح المكتب لاحقاً.")}</span><span>{storeAddress} · {t(printerPaper, "80مم حراري")}</span></footer></Shell>;
 }
