@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, Eye, Pencil, ArrowUpRight, Banknote, BarChart3, Box
 import {
   appBrand, appFooterMeta, appSections, architectureCopy, asPositiveInt, buildReceiptMarkup, categories, checkoutNote, colorSwatch, createDemoSale, createGeneratedProductSku, demoProducts, demoRoleStorageKey, demoSales, demoTaxRate, downloadCsv, emptyCatalogCopy, emptyOrdersCopy, formatDate, formatMoney, formatTime, generateColorCode, generateFamilyCode, getCategoryColor, getRoleGreeting, hardwareNotes, makeDashboard, noCartLabel, noPermissionCopy, openPrintWindow, paymentDetails, paymentLabels, persistDemoProducts, persistDemoSales, printerPaper, productCsv, productCsvTemplate, productSearchText, parseProductCsv, readDemoProducts, readDemoSales, initialsForRole, roleCanAccess, roleCopy, safeTrim, scannerFlowCopy, scannerPlaceholder, skuFlowCopy, skuLabelCsv, skuPatternDescription, stockLabel, stockTone, storeAddress, storeName, summarizeCart, toCsvFilename, UserRole, PaymentMethod, AppSection, ProductRecord, SaleRecord,
 } from "@shared/sku";
-import { enqueuePendingSaleAsync, loadInventorySnapshot, remoteEnabled, remoteEnabledSync, resolveDeviceId, syncPendingSales, usesElectronBridge } from "@/_core/remoteInventory";
+import { enqueuePendingSaleAsync, fetchPosStatus, loadInventorySnapshot, remoteEnabled, remoteEnabledSync, resolveDeviceId, syncPendingSales, usesElectronBridge } from "@/_core/remoteInventory";
 
 type CartLine = { product: ProductRecord; quantity: number };
 type L = (en: string, ar: string) => string;
@@ -254,6 +254,7 @@ export default function Home() {
   const [pendingCount, setPendingCount] = useState(0);
   const [inventoryConfigured, setInventoryConfigured] = useState(() => remoteEnabledSync());
   const [online, setOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+  const [remoteReachable, setRemoteReachable] = useState(true);
   const isArabic = language === "ar";
   const t = makeT(isArabic);
   const [receiptLogo, setReceiptLogo] = useState("");
@@ -262,25 +263,46 @@ export default function Home() {
   useEffect(() => {
     if (!remoteEnabledSync() && !usesElectronBridge()) return;
     let cancelled = false;
-    const refresh = async () => {
-      const snapshot = await loadInventorySnapshot();
+    const applySnapshot = async (opts?: { force?: boolean; preferDelta?: boolean }) => {
+      const snapshot = await loadInventorySnapshot(opts);
       if (cancelled) return;
       setInventoryConfigured(snapshot.configured);
       if (snapshot.configured || snapshot.products.length) setProducts(snapshot.products);
       setPendingCount(snapshot.pendingCount);
     };
-    const flush = async () => {
+    const flushPending = async () => {
       const result = await syncPendingSales();
       if (cancelled) return;
       setPendingCount(result.remaining);
-      if (result.synced > 0) await refresh();
+      if (result.synced > 0) await applySnapshot({ preferDelta: true });
     };
-    void refresh().then(() => flush());
-    const onOnline = () => { setOnline(true); void flush(); };
-    const onOffline = () => setOnline(false);
+    const poll = async () => {
+      const status = await fetchPosStatus();
+      if (cancelled) return;
+      setInventoryConfigured(status.configured);
+      if (!status.configured) return;
+      if (!status.ok) {
+        setRemoteReachable(false);
+        await flushPending();
+        return;
+      }
+      setRemoteReachable(true);
+      setOnline(typeof navigator !== "undefined" ? navigator.onLine : true);
+      if (status.changed) await applySnapshot({ preferDelta: true });
+      await flushPending();
+    };
+    void applySnapshot({ force: true }).then(() => flushPending()).then(() => poll());
+    const onOnline = () => {
+      setOnline(true);
+      void poll();
+    };
+    const onOffline = () => {
+      setOnline(false);
+      setRemoteReachable(false);
+    };
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
-    const timer = window.setInterval(() => { void flush(); }, 20_000);
+    const timer = window.setInterval(() => { void poll(); }, 25_000);
     return () => {
       cancelled = true;
       window.removeEventListener("online", onOnline);
@@ -327,7 +349,7 @@ export default function Home() {
       const result = await syncPendingSales();
       setPendingCount(result.remaining);
       if (result.synced <= 0) return;
-      const snapshot = await loadInventorySnapshot();
+      const snapshot = await loadInventorySnapshot({ preferDelta: true });
       if (snapshot.products.length) setProducts(snapshot.products);
       setPendingCount(snapshot.pendingCount);
     })();
@@ -338,11 +360,11 @@ export default function Home() {
   const content = section === "register" ? <Register products={products} sales={sales} onSale={handleSale} role={role} isArabic={isArabic} receiptLogo={receiptLogo} /> : section === "orders" ? <Orders sales={sales} isArabic={isArabic} receiptLogo={receiptLogo} /> : section === "catalog" ? <Catalog products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} isArabic={isArabic} /> : section === "sku" ? <SkuLab products={products} isArabic={isArabic} /> : <Reports products={products} sales={sales} isArabic={isArabic} />;
   const connectionLabel = !inventoryConfigured
     ? t("Local catalog", "كتالوج محلي")
-    : !online
+    : !online || !remoteReachable
       ? t("Offline · queued sales", "غير متصل · مبيعات معلّقة")
       : pendingCount > 0
         ? t(`Sync pending · ${pendingCount}`, `مزامنة معلّقة · ${pendingCount}`)
         : t("Register online", "عداد البيع متصل");
-  const connection = { ok: !inventoryConfigured || (online && pendingCount === 0), label: connectionLabel };
+  const connection = { ok: inventoryConfigured && online && remoteReachable && pendingCount === 0, label: connectionLabel };
   return <Shell role={role} section={section} onSection={handleSection} onRole={handleRole} notice={notice} language={language} onLanguage={handleLanguage} connection={connection}><div className="mb-5 flex items-center justify-between gap-3"><div className="flex items-center gap-1 rounded-full border border-[#cdbb9c] bg-[#eadfc9] p-1 text-[10px]"><button type="button" onClick={() => handleLanguage("en")} className={`rounded-full px-2 py-1 font-bold ${language === "en" ? "bg-[#2f3e34] text-[#f2ead8]" : "text-[#817664]"}`}>EN</button><button type="button" onClick={() => handleLanguage("ar")} className={`rounded-full px-2 py-1 font-bold ${language === "ar" ? "bg-[#2f3e34] text-[#f2ead8]" : "text-[#817664]"}`}>عربي</button></div><div className="hidden items-center gap-2 text-xs text-[#817664] md:flex"><span className="mono text-[9px] uppercase tracking-[.14em]">{isArabic ? roleLabelAr[role] : roleCopy[role].label}</span>{isArabic ? <ChevronLeft className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}<span>{isArabic ? greetingAr[role] : getRoleGreeting(role)}</span></div><div className="ms-auto flex items-center gap-2 rounded-full border border-[#cdbb9c] bg-[#eadfc9] px-3 py-2 text-[10px] text-[#71675b]"><span className="h-1.5 w-1.5 rounded-full bg-[#6e8b63]" /> {appFooterMeta}</div></div>{content}<footer className="mt-9 flex flex-col justify-between gap-3 border-t border-[#cdbb9c] pt-4 text-[10px] text-[#817664] sm:flex-row"><span>{t(architectureCopy, "Node.js + tRPC + Drizzle الآن؛ غلاف Electron لتطبيق سطح المكتب لاحقاً.")}</span><span>{storeAddress} · {t(printerPaper, "80مم حراري")}</span></footer></Shell>;
 }

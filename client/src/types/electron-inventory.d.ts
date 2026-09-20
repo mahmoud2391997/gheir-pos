@@ -1,5 +1,5 @@
 import type { ProductRecord } from "@shared/sku";
-import type { PendingSale } from "@/_core/remoteInventory";
+import type { PendingSale, PosStatus } from "@/_core/remoteInventory";
 
 export type GheirInventoryBridge = {
   isConfigured: () => Promise<boolean>;
@@ -7,6 +7,7 @@ export type GheirInventoryBridge = {
   enqueueSale: (sale: PendingSale) => Promise<{ pendingCount: number }>;
   syncPending: () => Promise<{ synced: number; remaining: number }>;
   getDeviceId: () => Promise<string | undefined>;
+  getStatus?: () => Promise<PosStatus>;
 };
 
 declare global {
