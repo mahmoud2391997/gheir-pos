@@ -1,0 +1,29 @@
+{
+  "appId": "com.gheir.pos",
+  "productName": "GHEIR POS",
+  "directories": {
+    "output": "release",
+    "buildResources": "electron/assets"
+  },
+  "files": [
+    "dist/public/**/*",
+    "dist-electron/**/*",
+    "package.json"
+  ],
+  "asarUnpack": [
+    "**/node_modules/better-sqlite3/**/*"
+  ],
+  "extraResources": [],
+  "asar": true,
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "category": "Office"
+  },
+  "mac": {
+    "target": ["dmg"],
+    "category": "public.app-category.business"
+  },
+  "win": {
+    "target": ["nsis"]
+  }
+}
