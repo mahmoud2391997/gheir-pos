@@ -21,12 +21,31 @@ export type PendingSale = {
   items: Array<{ sku: string; quantity: number; unitPrice: number; name: string }>;
 };
 
+type InventoryBridge = {
+  isConfigured: () => Promise<boolean>;
+  getProducts: () => Promise<{ products: ProductRecord[]; pendingCount: number; configured: boolean }>;
+  enqueueSale: (sale: PendingSale) => Promise<{ pendingCount: number }>;
+  syncPending: () => Promise<{ synced: number; remaining: number }>;
+  getDeviceId: () => Promise<string | undefined>;
+};
+
+declare global {
+  interface Window {
+    gheirInventory?: InventoryBridge;
+  }
+}
+
 const baseUrl = () => String(import.meta.env.VITE_WEBSITE_API_BASE_URL || "").replace(/\/+$/, "");
+/** Web-only fallback. Electron never injects VITE_POS_API_KEY into the renderer. */
 const posKey = () => String(import.meta.env.VITE_POS_API_KEY || "");
 export const deviceId = () => String(import.meta.env.VITE_POS_DEVICE_ID || "").trim() || undefined;
 
-export function remoteEnabled() {
-  return Boolean(baseUrl() && posKey());
+function bridge(): InventoryBridge | undefined {
+  return typeof window !== "undefined" ? window.gheirInventory : undefined;
+}
+
+export function usesElectronBridge() {
+  return Boolean(bridge());
 }
 
 function skuToId(sku: string) {
@@ -40,6 +59,7 @@ const PRODUCTS_CACHE_KEY = "gheir_pos_remote_products_v1";
 const PENDING_SALES_KEY = "gheir_pos_pending_sales_v1";
 
 export function readCachedProducts(): ProductRecord[] {
+  if (usesElectronBridge()) return [];
   try {
     const raw = localStorage.getItem(PRODUCTS_CACHE_KEY);
     if (!raw) return [];
@@ -51,10 +71,12 @@ export function readCachedProducts(): ProductRecord[] {
 }
 
 export function writeCachedProducts(products: ProductRecord[]) {
+  if (usesElectronBridge()) return;
   localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(products));
 }
 
 export function readPendingSales(): PendingSale[] {
+  if (usesElectronBridge()) return [];
   try {
     const raw = localStorage.getItem(PENDING_SALES_KEY);
     if (!raw) return [];
@@ -66,13 +88,25 @@ export function readPendingSales(): PendingSale[] {
 }
 
 export function writePendingSales(items: PendingSale[]) {
+  if (usesElectronBridge()) return;
   localStorage.setItem(PENDING_SALES_KEY, JSON.stringify(items));
 }
 
 export function enqueuePendingSale(sale: PendingSale) {
+  if (usesElectronBridge()) {
+    void bridge()!.enqueueSale(sale);
+    return;
+  }
   const cur = readPendingSales();
   if (cur.some((s) => s.clientSaleId === sale.clientSaleId)) return;
   writePendingSales([sale, ...cur]);
+}
+
+export async function enqueuePendingSaleAsync(sale: PendingSale) {
+  const b = bridge();
+  if (b) return b.enqueueSale(sale);
+  enqueuePendingSale(sale);
+  return { pendingCount: readPendingSales().length };
 }
 
 export function pendingQuantityBySku(pending: PendingSale[]) {
@@ -94,7 +128,24 @@ export function applyPendingToStock(products: ProductRecord[], pending: PendingS
   });
 }
 
+export async function remoteEnabled() {
+  const b = bridge();
+  if (b) return b.isConfigured();
+  return Boolean(baseUrl() && posKey());
+}
+
+/** Sync web-only hint. Electron configuration is resolved asynchronously via the bridge. */
+export function remoteEnabledSync() {
+  if (usesElectronBridge()) return false;
+  return Boolean(baseUrl() && posKey());
+}
+
 export async function fetchRemoteProducts(): Promise<ProductRecord[]> {
+  const b = bridge();
+  if (b) {
+    const result = await b.getProducts();
+    return result.products;
+  }
   const url = `${baseUrl()}/api/pos/products`;
   const response = await fetch(url, { headers: { "x-pos-key": posKey() } });
   const json = await response.json().catch(() => ({}));
@@ -127,10 +178,31 @@ export async function fetchRemoteProducts(): Promise<ProductRecord[]> {
   });
 }
 
+export async function loadInventorySnapshot(): Promise<{ products: ProductRecord[]; pendingCount: number; configured: boolean }> {
+  const b = bridge();
+  if (b) return b.getProducts();
+  const configured = Boolean(baseUrl() && posKey());
+  if (!configured) {
+    return { products: [], pendingCount: readPendingSales().length, configured: false };
+  }
+  const pending = readPendingSales();
+  try {
+    const remote = await fetchRemoteProducts();
+    writeCachedProducts(remote);
+    return { products: applyPendingToStock(remote, pending), pendingCount: pending.length, configured: true };
+  } catch {
+    const cached = readCachedProducts();
+    return { products: applyPendingToStock(cached, pending), pendingCount: pending.length, configured: true };
+  }
+}
+
 export async function syncPendingSales(): Promise<{ synced: number; remaining: number }> {
+  const b = bridge();
+  if (b) return b.syncPending();
+
   const pending = readPendingSales();
   if (!pending.length) return { synced: 0, remaining: 0 };
-  if (!remoteEnabled()) return { synced: 0, remaining: pending.length };
+  if (!(await remoteEnabled())) return { synced: 0, remaining: pending.length };
   if (!navigator.onLine) return { synced: 0, remaining: pending.length };
 
   const kept: PendingSale[] = [];
@@ -157,4 +229,10 @@ export async function syncPendingSales(): Promise<{ synced: number; remaining: n
   }
   writePendingSales(kept);
   return { synced, remaining: kept.length };
+}
+
+export async function resolveDeviceId() {
+  const b = bridge();
+  if (b) return (await b.getDeviceId()) || undefined;
+  return deviceId();
 }
