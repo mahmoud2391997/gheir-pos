@@ -16,18 +16,13 @@ async function resolveHandler(): Promise<Handler> {
           resolved = mod.default;
           return resolved;
         }
-      } catch {
-        // Ignore and fall back to source version.
+        throw new Error("Bundled app did not export a default handler");
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(
+          `Bundled API app missing/unloadable. Ensure \`pnpm vercel-build\` ran and Vercel function includes api/_bundled-app.mjs. Underlying error: ${message}`
+        );
       }
-
-      const mod = (await import("../server/_core/app")) as {
-        createApp?: () => Handler;
-      };
-      if (typeof mod.createApp !== "function") {
-        throw new Error("createApp export missing from server/_core/app");
-      }
-      resolved = mod.createApp();
-      return resolved;
     })();
   }
   return resolving;

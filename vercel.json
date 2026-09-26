@@ -6,7 +6,10 @@
   "outputDirectory": "dist/public",
   "functions": {
     "api/index.ts": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": [
+        "api/_bundled-app.mjs"
+      ]
     }
   },
   "rewrites": [
