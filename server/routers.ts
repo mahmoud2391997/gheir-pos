@@ -56,8 +56,8 @@ export const appRouter = router({
       ctx.user ? toPublicUser(ctx.user) : null
     ),
     loginOptions: publicProcedure.query(() => ({
-      /** True when NO_DEVICE is set: no register is attached, so offer demo login. */
-      demoLogin: ENV.noDevice,
+      /** Offer demo login whenever demo credentials are enabled. */
+      demoLogin: ENV.demoLoginEnabled,
     })),
     login: publicProcedure
       .input(
