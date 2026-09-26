@@ -8,7 +8,7 @@ import { getDb, getUserByUsername } from "../server/db";
 type Role = "cashier" | "admin";
 
 function readFlag(name: string) {
-  const raw = process.argv.find((arg) => arg.startsWith(`--${name}=`));
+  const raw = process.argv.find(arg => arg.startsWith(`--${name}=`));
   if (!raw) return undefined;
   return raw.slice(name.length + 3);
 }
@@ -55,7 +55,9 @@ async function main() {
 
   const existing = await getUserByUsername(username);
   if (existing && !update) {
-    throw new Error(`User '${username}' already exists. Re-run with --update to update password/role.`);
+    throw new Error(
+      `User '${username}' already exists. Re-run with --update to update password/role.`
+    );
   }
 
   const passwordHash = await hashPassword(password);
@@ -87,11 +89,12 @@ async function main() {
       .where(eq(users.id, existing.id));
   }
 
-  console.log(`${existing ? "Updated" : "Created"} user '${username}' (${role}).`);
+  console.log(
+    `${existing ? "Updated" : "Created"} user '${username}' (${role}).`
+  );
 }
 
-main().catch((error) => {
+main().catch(error => {
   console.error(String(error instanceof Error ? error.message : error));
   process.exit(1);
 });
-

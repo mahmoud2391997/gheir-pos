@@ -8,7 +8,8 @@ export type PosSecrets = {
   deviceId?: string;
 };
 
-const SECRET_FILE = () => path.join(app.getPath("userData"), "pos-secrets.json");
+const SECRET_FILE = () =>
+  path.join(app.getPath("userData"), "pos-secrets.json");
 
 type StoredBlob = {
   websiteApiBaseUrl?: string;
@@ -18,12 +19,23 @@ type StoredBlob = {
 };
 
 function readEnvSecrets(): Partial<PosSecrets> {
-  const websiteApiBaseUrl = String(process.env.WEBSITE_API_BASE_URL || process.env.VITE_WEBSITE_API_BASE_URL || "")
+  const websiteApiBaseUrl = String(
+    process.env.WEBSITE_API_BASE_URL ||
+      process.env.VITE_WEBSITE_API_BASE_URL ||
+      ""
+  )
     .trim()
     .replace(/\/+$/, "");
   const posApiKey = String(process.env.POS_API_KEY || "").trim();
-  const deviceId = String(process.env.POS_DEVICE_ID || process.env.VITE_POS_DEVICE_ID || "").trim() || undefined;
-  return { websiteApiBaseUrl: websiteApiBaseUrl || undefined, posApiKey: posApiKey || undefined, deviceId };
+  const deviceId =
+    String(
+      process.env.POS_DEVICE_ID || process.env.VITE_POS_DEVICE_ID || ""
+    ).trim() || undefined;
+  return {
+    websiteApiBaseUrl: websiteApiBaseUrl || undefined,
+    posApiKey: posApiKey || undefined,
+    deviceId,
+  };
 }
 
 function readStoredSecrets(): Partial<PosSecrets> {
@@ -31,11 +43,18 @@ function readStoredSecrets(): Partial<PosSecrets> {
     const raw = fs.readFileSync(SECRET_FILE(), "utf8");
     const parsed = JSON.parse(raw) as StoredBlob;
     let posApiKey = parsed.posApiKey?.trim() || "";
-    if (!posApiKey && parsed.posApiKeyEnc && safeStorage.isEncryptionAvailable()) {
-      posApiKey = safeStorage.decryptString(Buffer.from(parsed.posApiKeyEnc, "base64")).trim();
+    if (
+      !posApiKey &&
+      parsed.posApiKeyEnc &&
+      safeStorage.isEncryptionAvailable()
+    ) {
+      posApiKey = safeStorage
+        .decryptString(Buffer.from(parsed.posApiKeyEnc, "base64"))
+        .trim();
     }
     return {
-      websiteApiBaseUrl: parsed.websiteApiBaseUrl?.trim().replace(/\/+$/, "") || undefined,
+      websiteApiBaseUrl:
+        parsed.websiteApiBaseUrl?.trim().replace(/\/+$/, "") || undefined,
       posApiKey: posApiKey || undefined,
       deviceId: parsed.deviceId?.trim() || undefined,
     };
@@ -65,7 +84,9 @@ export function persistSecrets(input: PosSecrets) {
     deviceId: input.deviceId,
   };
   if (safeStorage.isEncryptionAvailable()) {
-    payload.posApiKeyEnc = safeStorage.encryptString(input.posApiKey).toString("base64");
+    payload.posApiKeyEnc = safeStorage
+      .encryptString(input.posApiKey)
+      .toString("base64");
   } else {
     // Fallback when encryption is unavailable (some CI / headless Linux sessions).
     payload.posApiKey = input.posApiKey;

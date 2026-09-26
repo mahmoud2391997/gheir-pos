@@ -1,252 +1,2432 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowDown, ArrowUp, Eye, LogOut, Pencil, ArrowUpRight, Banknote, BarChart3, Box, Check, CheckCircle2, ChevronLeft, ChevronRight, CircleDollarSign, CreditCard, Download, History, LayoutDashboard, LockKeyhole, Menu, Minus, Package, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Printer, QrCode, Receipt, ScanLine, Search, Settings2, ShieldCheck, Tags, Trash2, Upload, Users, X } from "lucide-react";
 import {
-  appBrand, appFooterMeta, appSections, architectureCopy, asPositiveInt, buildReceiptMarkup, categories, checkoutNote, colorSwatch, createDemoSale, createGeneratedProductSku, demoProducts, demoRoleStorageKey, demoSales, demoTaxRate, downloadCsv, emptyCatalogCopy, emptyOrdersCopy, formatDate, formatMoney, formatTime, generateColorCode, generateFamilyCode, getCategoryColor, getRoleGreeting, hardwareNotes, makeDashboard, noCartLabel, noPermissionCopy, openPrintWindow, paymentDetails, paymentLabels, persistDemoProducts, persistDemoSales, printerPaper, productCsv, productCsvTemplate, productSearchText, parseProductCsv, readDemoProducts, readDemoSales, initialsForRole, roleCanAccess, roleCopy, safeTrim, scannerFlowCopy, scannerPlaceholder, skuFlowCopy, skuLabelCsv, skuPatternDescription, stockLabel, stockTone, storeAddress, storeName, summarizeCart, toCsvFilename, UserRole, PaymentMethod, AppSection, ProductRecord, SaleRecord,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  ArrowDown,
+  ArrowUp,
+  Eye,
+  LogOut,
+  Pencil,
+  ArrowUpRight,
+  Banknote,
+  BarChart3,
+  Box,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  CircleDollarSign,
+  CreditCard,
+  Download,
+  History,
+  LayoutDashboard,
+  LockKeyhole,
+  Menu,
+  Minus,
+  Package,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  Plus,
+  Printer,
+  QrCode,
+  Receipt,
+  ScanLine,
+  Search,
+  Settings2,
+  ShieldCheck,
+  Tags,
+  Trash2,
+  Upload,
+  Users,
+  X,
+} from "lucide-react";
+import {
+  appBrand,
+  appFooterMeta,
+  appSections,
+  architectureCopy,
+  asPositiveInt,
+  buildReceiptMarkup,
+  categories,
+  checkoutNote,
+  colorSwatch,
+  createDemoSale,
+  createGeneratedProductSku,
+  demoProducts,
+  demoRoleStorageKey,
+  demoSales,
+  demoTaxRate,
+  downloadCsv,
+  emptyCatalogCopy,
+  emptyOrdersCopy,
+  formatDate,
+  formatMoney,
+  formatTime,
+  generateColorCode,
+  generateFamilyCode,
+  getCategoryColor,
+  getRoleGreeting,
+  hardwareNotes,
+  makeDashboard,
+  noCartLabel,
+  noPermissionCopy,
+  openPrintWindow,
+  paymentDetails,
+  paymentLabels,
+  persistDemoProducts,
+  persistDemoSales,
+  printerPaper,
+  productCsv,
+  productCsvTemplate,
+  productSearchText,
+  parseProductCsv,
+  readDemoProducts,
+  readDemoSales,
+  initialsForRole,
+  roleCanAccess,
+  roleCopy,
+  safeTrim,
+  scannerFlowCopy,
+  scannerPlaceholder,
+  skuFlowCopy,
+  skuLabelCsv,
+  skuPatternDescription,
+  stockLabel,
+  stockTone,
+  storeAddress,
+  storeName,
+  summarizeCart,
+  toCsvFilename,
+  UserRole,
+  PaymentMethod,
+  AppSection,
+  ProductRecord,
+  SaleRecord,
 } from "@shared/sku";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { enqueuePendingSaleAsync, fetchPosStatus, loadInventorySnapshot, remoteEnabled, remoteEnabledSync, resolveDeviceId, syncPendingSales, usesElectronBridge } from "@/_core/remoteInventory";
+import {
+  enqueuePendingSaleAsync,
+  fetchPosStatus,
+  loadInventorySnapshot,
+  remoteEnabled,
+  remoteEnabledSync,
+  resolveDeviceId,
+  syncPendingSales,
+  usesElectronBridge,
+} from "@/_core/remoteInventory";
 
 type CartLine = { product: ProductRecord; quantity: number };
 type L = (en: string, ar: string) => string;
-const makeT = (isArabic: boolean): L => (en, ar) => (isArabic ? ar : en);
+const makeT =
+  (isArabic: boolean): L =>
+  (en, ar) =>
+    isArabic ? ar : en;
 
-const categoriesAr: Record<string, string> = { All: "الكل", Tableware: "أطباق", Decor: "ديكور", Serving: "تقديم", Accessories: "إكسسوارات", Uncategorized: "غير مصنفة" };
+const categoriesAr: Record<string, string> = {
+  All: "الكل",
+  Tableware: "أطباق",
+  Decor: "ديكور",
+  Serving: "تقديم",
+  Accessories: "إكسسوارات",
+  Uncategorized: "غير مصنفة",
+};
 const paymentAr: Record<PaymentMethod, { label: string; detail: string }> = {
   cash: { label: "نقداً", detail: "تحصيل عند الكاشير" },
   card: { label: "بطاقة", detail: "دفع عبر الماكينة" },
   instapay: { label: "إنستاباي", detail: "تحويل بالرمز QR" },
 };
-const stockAr: Record<string, string> = { "In stock": "متوفر", Watch: "تحت المراقبة", "Low stock": "مخزون منخفض" };
-const roleLabelAr: Record<UserRole, string> = { cashier: "أمين الصندوق", admin: "المدير" };
-const greetingAr: Record<UserRole, string> = { admin: "حافظ على الرف منظمًا والهوية متسقة.", cashier: "عداد هادئ لشراء مدروس." };
+const stockAr: Record<string, string> = {
+  "In stock": "متوفر",
+  Watch: "تحت المراقبة",
+  "Low stock": "مخزون منخفض",
+};
+const roleLabelAr: Record<UserRole, string> = {
+  cashier: "أمين الصندوق",
+  admin: "المدير",
+};
+const greetingAr: Record<UserRole, string> = {
+  admin: "حافظ على الرف منظمًا والهوية متسقة.",
+  cashier: "عداد هادئ لشراء مدروس.",
+};
 const hardwareNotesAr = [
-  { title: "الماسح الضوئي جاهز", detail: "تعمل أجهزة المسح عبر لوحة المفاتيح USB / بلوتوث مباشرة دون إعدادات إضافية." },
-  { title: "الطابعة جاهزة", detail: "تستخدم الإيصالات جسر الطباعة من المتصفح اليوم؛ ويمكن لـ Electron ربطها بالطابعات الحرارية لاحقاً." },
-  { title: "مسار Electron", detail: "تبقى الواجهة ويب أولاً مع طبقة ربط نظيفة بالأجهزة لتغليف سطح المكتب." },
+  {
+    title: "الماسح الضوئي جاهز",
+    detail:
+      "تعمل أجهزة المسح عبر لوحة المفاتيح USB / بلوتوث مباشرة دون إعدادات إضافية.",
+  },
+  {
+    title: "الطابعة جاهزة",
+    detail:
+      "تستخدم الإيصالات جسر الطباعة من المتصفح اليوم؛ ويمكن لـ Electron ربطها بالطابعات الحرارية لاحقاً.",
+  },
+  {
+    title: "مسار Electron",
+    detail:
+      "تبقى الواجهة ويب أولاً مع طبقة ربط نظيفة بالأجهزة لتغليف سطح المكتب.",
+  },
 ];
 
-function ProductArt({ product, compact = false }: { product: ProductRecord; compact?: boolean }) {
-  const tone = product.shape === "round" ? "rounded-full" : "rounded-[18%_18%_12%_12%]";
-  return <div className={`product-art relative flex items-center justify-center overflow-hidden ${compact ? "h-12 w-12" : "h-32 w-full"} ${tone}`} style={{ background: getCategoryColor(product.category) }}>
-    <div className="absolute inset-0 opacity-25" style={{ background: "repeating-linear-gradient(125deg, transparent 0 7px, rgba(43,43,43,.32) 8px 9px)" }} />
-    <span className={`serif brand-wordmark relative z-10 font-semibold tracking-[.14em] text-[#2b2b2b]/75 ${compact ? "text-xs" : "text-3xl"}`}>{product.name.slice(0, 1)}</span>
-    {!compact && <span className="mono absolute bottom-2 left-3 text-[9px] uppercase tracking-[.16em] text-[#2b2b2b]/55">{product.shape}</span>}
-  </div>;
+function ProductArt({
+  product,
+  compact = false,
+}: {
+  product: ProductRecord;
+  compact?: boolean;
+}) {
+  const tone =
+    product.shape === "round" ? "rounded-full" : "rounded-[18%_18%_12%_12%]";
+  return (
+    <div
+      className={`product-art relative flex items-center justify-center overflow-hidden ${compact ? "h-12 w-12" : "h-32 w-full"} ${tone}`}
+      style={{ background: getCategoryColor(product.category) }}
+    >
+      <div
+        className="absolute inset-0 opacity-25"
+        style={{
+          background:
+            "repeating-linear-gradient(125deg, transparent 0 7px, rgba(43,43,43,.32) 8px 9px)",
+        }}
+      />
+      <span
+        className={`serif brand-wordmark relative z-10 font-semibold tracking-[.14em] text-[#2b2b2b]/75 ${compact ? "text-xs" : "text-3xl"}`}
+      >
+        {product.name.slice(0, 1)}
+      </span>
+      {!compact && (
+        <span className="mono absolute bottom-2 left-3 text-[9px] uppercase tracking-[.16em] text-[#2b2b2b]/55">
+          {product.shape}
+        </span>
+      )}
+    </div>
+  );
 }
 
-function PageHeading({ eyebrow, title, detail, action }: { eyebrow: string; title: string; detail: string; action?: React.ReactNode }) {
-  return <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="mono text-[10px] uppercase tracking-[.2em] text-[#7f705e]">{eyebrow}</p><h1 className="serif mt-1 text-[42px] font-semibold leading-none tracking-tight text-[#2f3e34]">{title}</h1><p className="mt-2 text-sm text-[#71675b]">{detail}</p></div>{action}</div>;
+function PageHeading({
+  eyebrow,
+  title,
+  detail,
+  action,
+}: {
+  eyebrow: string;
+  title: string;
+  detail: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div>
+        <p className="mono text-[10px] uppercase tracking-[.2em] text-[#7f705e]">
+          {eyebrow}
+        </p>
+        <h1 className="serif mt-1 text-[42px] font-semibold leading-none tracking-tight text-[#2f3e34]">
+          {title}
+        </h1>
+        <p className="mt-2 text-sm text-[#71675b]">{detail}</p>
+      </div>
+      {action}
+    </div>
+  );
 }
 
-function MetricCard({ label, value, icon: Icon, warn = false }: { label: string; value: string; icon: typeof Box; warn?: boolean }) {
-  return <div className="rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-4"><div className="flex items-center justify-between"><span className="mono text-[9px] uppercase tracking-[.16em] text-[#817664]">{label}</span><Icon className={`h-4 w-4 ${warn ? "text-[#9a5537]" : "text-[#5c4033]"}`} /></div><div className="mt-4 text-2xl font-extrabold tracking-tight text-[#2f3e34]">{value}</div></div>;
+function MetricCard({
+  label,
+  value,
+  icon: Icon,
+  warn = false,
+}: {
+  label: string;
+  value: string;
+  icon: typeof Box;
+  warn?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-4">
+      <div className="flex items-center justify-between">
+        <span className="mono text-[9px] uppercase tracking-[.16em] text-[#817664]">
+          {label}
+        </span>
+        <Icon
+          className={`h-4 w-4 ${warn ? "text-[#9a5537]" : "text-[#5c4033]"}`}
+        />
+      </div>
+      <div className="mt-4 text-2xl font-extrabold tracking-tight text-[#2f3e34]">
+        {value}
+      </div>
+    </div>
+  );
 }
 
-function ProductCard({ product, onAdd, isArabic }: { product: ProductRecord; onAdd: () => void; isArabic: boolean }) {
+function ProductCard({
+  product,
+  onAdd,
+  isArabic,
+}: {
+  product: ProductRecord;
+  onAdd: () => void;
+  isArabic: boolean;
+}) {
   const t = makeT(isArabic);
   const tone = stockTone(product.stock);
-  return <button onClick={onAdd} className="product-card group rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-3 text-start transition hover:-translate-y-0.5 hover:border-[#5c4033]/50 hover:shadow-[0_12px_30px_rgba(92,64,51,.09)]"><ProductArt product={product} /><div className="mt-3 flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-extrabold text-[#2f3e34]">{product.arabicName || product.name}</p><p className="mt-1 text-xs text-[#817664]">{product.color}{product.colorArabic ? ` · ${product.colorArabic}` : ""} · {product.baseSku}</p></div><span className="serif text-lg font-semibold text-[#5c4033]">{formatMoney(product.price, isArabic ? "ar-EG" : "en-EG")}</span></div><div className="mt-3 flex items-center justify-between"><span className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.12em] ${tone === "danger" ? "text-[#9a5537]" : tone === "warn" ? "text-[#a66b43]" : "text-[#6e8b63]"}`}><span className={`h-1.5 w-1.5 rounded-full ${tone === "danger" ? "bg-[#9a5537]" : tone === "warn" ? "bg-[#b46b3d]" : "bg-[#6e8b63]"}`} />{product.stock} {t("in shelf", "على الرف")}</span><span className="mono text-[10px] text-[#817664]">{product.colorCode}</span></div></button>;
+  return (
+    <button
+      onClick={onAdd}
+      className="product-card group rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-3 text-start transition hover:-translate-y-0.5 hover:border-[#5c4033]/50 hover:shadow-[0_12px_30px_rgba(92,64,51,.09)]"
+    >
+      <ProductArt product={product} />
+      <div className="mt-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-extrabold text-[#2f3e34]">
+            {product.arabicName || product.name}
+          </p>
+          <p className="mt-1 text-xs text-[#817664]">
+            {product.color}
+            {product.colorArabic ? ` · ${product.colorArabic}` : ""} ·{" "}
+            {product.baseSku}
+          </p>
+        </div>
+        <span className="serif text-lg font-semibold text-[#5c4033]">
+          {formatMoney(product.price, isArabic ? "ar-EG" : "en-EG")}
+        </span>
+      </div>
+      <div className="mt-3 flex items-center justify-between">
+        <span
+          className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[.12em] ${tone === "danger" ? "text-[#9a5537]" : tone === "warn" ? "text-[#a66b43]" : "text-[#6e8b63]"}`}
+        >
+          <span
+            className={`h-1.5 w-1.5 rounded-full ${tone === "danger" ? "bg-[#9a5537]" : tone === "warn" ? "bg-[#b46b3d]" : "bg-[#6e8b63]"}`}
+          />
+          {product.stock} {t("in shelf", "على الرف")}
+        </span>
+        <span className="mono text-[10px] text-[#817664]">
+          {product.colorCode}
+        </span>
+      </div>
+    </button>
+  );
 }
 
-function NavIcon({ section }: { section: AppSection }) { const Icon = section === "register" ? LayoutDashboard : section === "orders" ? History : section === "catalog" ? Package : section === "reports" ? BarChart3 : Tags; return <Icon className="h-[17px] w-[17px]" />; }
+function NavIcon({ section }: { section: AppSection }) {
+  const Icon =
+    section === "register"
+      ? LayoutDashboard
+      : section === "orders"
+        ? History
+        : section === "catalog"
+          ? Package
+          : section === "reports"
+            ? BarChart3
+            : Tags;
+  return <Icon className="h-[17px] w-[17px]" />;
+}
 
-function Shell({ role, section, onSection, children, onRole, notice, language, onLanguage, connection, onLogout }: { role: UserRole; section: AppSection; onSection: (section: AppSection) => void; children: React.ReactNode; onRole: (role: UserRole) => void; notice: string; language: "en" | "ar"; onLanguage: (language: "en" | "ar") => void; connection: { ok: boolean; label: string }; onLogout: () => void }) {
+function Shell({
+  role,
+  section,
+  onSection,
+  children,
+  onRole,
+  notice,
+  language,
+  onLanguage,
+  connection,
+  onLogout,
+}: {
+  role: UserRole;
+  section: AppSection;
+  onSection: (section: AppSection) => void;
+  children: React.ReactNode;
+  onRole: (role: UserRole) => void;
+  notice: string;
+  language: "en" | "ar";
+  onLanguage: (language: "en" | "ar") => void;
+  connection: { ok: boolean; label: string };
+  onLogout: () => void;
+}) {
   const [navOpen, setNavOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const isArabic = language === "ar";
   const t = makeT(isArabic);
-  const visibleSections = appSections.filter((item) => roleCanAccess(role, item.id));
-  const localizedCopy = isArabic ? { close: "إغلاق القائمة", expand: "توسيع القائمة", collapse: "طي القائمة", navigation: "التنقل الرئيسي" } : { close: "Close navigation", expand: "Expand sidebar", collapse: "Collapse sidebar", navigation: "Main navigation" };
-  const mainOffset = collapsed ? (isArabic ? "md:pr-[78px] md:pl-0" : "md:pl-[78px] md:pr-0") : (isArabic ? "md:pr-[248px] md:pl-0" : "md:pl-[248px] md:pr-0");
+  const visibleSections = appSections.filter(item =>
+    roleCanAccess(role, item.id)
+  );
+  const localizedCopy = isArabic
+    ? {
+        close: "إغلاق القائمة",
+        expand: "توسيع القائمة",
+        collapse: "طي القائمة",
+        navigation: "التنقل الرئيسي",
+      }
+    : {
+        close: "Close navigation",
+        expand: "Expand sidebar",
+        collapse: "Collapse sidebar",
+        navigation: "Main navigation",
+      };
+  const mainOffset = collapsed
+    ? isArabic
+      ? "md:pr-[78px] md:pl-0"
+      : "md:pl-[78px] md:pr-0"
+    : isArabic
+      ? "md:pr-[248px] md:pl-0"
+      : "md:pl-[248px] md:pr-0";
   const CollapseIcon = isArabic ? PanelRightClose : PanelLeftClose;
   const ExpandIcon = isArabic ? PanelRightOpen : PanelLeftOpen;
   return (
-    <div dir={isArabic ? "rtl" : "ltr"} lang={language} className={`gheir-shell flex h-dvh flex-col overflow-hidden grain ${collapsed ? "sidebar-collapsed" : ""}`}>
-      <header className="sticky top-0 z-30 flex h-[74px] shrink-0 items-center justify-between border-b border-[#cdbb9c] bg-[#f2ead8]/95 px-5 backdrop-blur-md md:hidden"><button onClick={() => setNavOpen((value) => !value)} className="rounded-lg p-2 text-[#2f3e34] hover:bg-[#e2d5bc]" aria-label={t("Open navigation", "��تح القائمة")}><Menu className="h-5 w-5" /></button><img src="/gheir-brand-lockup.png" alt="GHEIR" className="h-12 w-auto object-contain" /><span className="h-8 w-8 rounded-full bg-[#2f3e34] text-center text-xs leading-8 text-[#f2ead8]">{initialsForRole(role).slice(0, 1)}</span></header>
-      {navOpen && <button aria-label={localizedCopy.close} onClick={() => setNavOpen(false)} className="fixed inset-0 z-20 bg-[#2b2b2b]/25 md:hidden" />}
-      <aside className={`fixed inset-y-0 z-30 flex ${isArabic ? "right-0 border-l" : "left-0 border-r"} ${collapsed ? "w-[248px] md:w-[78px]" : "w-[248px]"} flex-col border-[#cdbb9c] bg-[#2f3e34] px-4 py-6 text-[#f2ead8] transition-all md:translate-x-0 ${navOpen ? "translate-x-0" : isArabic ? "translate-x-full" : "-translate-x-full"}`}>
-        <div className={`mb-10 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
-          <div className={`flex items-center gap-2 ${collapsed ? "md:justify-center md:flex-col md:gap-0" : ""}`}>
-            <img src="/gheir-brand-lockup.png" alt="GHEIR" className={`${collapsed ? "h-12 w-10" : "h-16 w-12"} rounded-xl bg-[#f2ead8] p-1.5 object-contain`} />
-            {!collapsed && <div><div className="serif brand-wordmark text-[28px] font-semibold leading-none tracking-[.18em]">GHEIR</div><div className="mt-2 mono text-[9px] uppercase tracking-[.22em] text-[#d9c7a3]">{t(appBrand.descriptor, "استوديو تصميم حرفي")}</div></div>}
+    <div
+      dir={isArabic ? "rtl" : "ltr"}
+      lang={language}
+      className={`gheir-shell flex h-dvh flex-col overflow-hidden grain ${collapsed ? "sidebar-collapsed" : ""}`}
+    >
+      <header className="sticky top-0 z-30 flex h-[74px] shrink-0 items-center justify-between border-b border-[#cdbb9c] bg-[#f2ead8]/95 px-5 backdrop-blur-md md:hidden">
+        <button
+          onClick={() => setNavOpen(value => !value)}
+          className="rounded-lg p-2 text-[#2f3e34] hover:bg-[#e2d5bc]"
+          aria-label={t("Open navigation", "��تح القائمة")}
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <img
+          src="/gheir-brand-lockup.png"
+          alt="GHEIR"
+          className="h-12 w-auto object-contain"
+        />
+        <span className="h-8 w-8 rounded-full bg-[#2f3e34] text-center text-xs leading-8 text-[#f2ead8]">
+          {initialsForRole(role).slice(0, 1)}
+        </span>
+      </header>
+      {navOpen && (
+        <button
+          aria-label={localizedCopy.close}
+          onClick={() => setNavOpen(false)}
+          className="fixed inset-0 z-20 bg-[#2b2b2b]/25 md:hidden"
+        />
+      )}
+      <aside
+        className={`fixed inset-y-0 z-30 flex ${isArabic ? "right-0 border-l" : "left-0 border-r"} ${collapsed ? "w-[248px] md:w-[78px]" : "w-[248px]"} flex-col border-[#cdbb9c] bg-[#2f3e34] px-4 py-6 text-[#f2ead8] transition-all md:translate-x-0 ${navOpen ? "translate-x-0" : isArabic ? "translate-x-full" : "-translate-x-full"}`}
+      >
+        <div
+          className={`mb-10 flex items-center ${collapsed ? "justify-center" : "justify-between"}`}
+        >
+          <div
+            className={`flex items-center gap-2 ${collapsed ? "md:justify-center md:flex-col md:gap-0" : ""}`}
+          >
+            <img
+              src="/gheir-brand-lockup.png"
+              alt="GHEIR"
+              className={`${collapsed ? "h-12 w-10" : "h-16 w-12"} rounded-xl bg-[#f2ead8] p-1.5 object-contain`}
+            />
+            {!collapsed && (
+              <div>
+                <div className="serif brand-wordmark text-[28px] font-semibold leading-none tracking-[.18em]">
+                  GHEIR
+                </div>
+                <div className="mt-2 mono text-[9px] uppercase tracking-[.22em] text-[#d9c7a3]">
+                  {t(appBrand.descriptor, "استوديو تصميم حرفي")}
+                </div>
+              </div>
+            )}
           </div>
-          {!collapsed && <button onClick={() => setCollapsed(true)} className="rounded-lg p-2 text-[#d9c7a3] hover:bg-[#415045]" aria-label={localizedCopy.collapse}><CollapseIcon className="h-4 w-4" /></button>}
+          {!collapsed && (
+            <button
+              onClick={() => setCollapsed(true)}
+              className="rounded-lg p-2 text-[#d9c7a3] hover:bg-[#415045]"
+              aria-label={localizedCopy.collapse}
+            >
+              <CollapseIcon className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        <button onClick={() => setCollapsed(false)} className={`mb-4 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-[#d9c7a3] hover:bg-[#415045] ${collapsed ? "justify-center" : ""}`} aria-label={localizedCopy.expand}><ExpandIcon className="h-4 w-4" />{!collapsed && <span>{localizedCopy.expand}</span>}</button>
+        <button
+          onClick={() => setCollapsed(false)}
+          className={`mb-4 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-[#d9c7a3] hover:bg-[#415045] ${collapsed ? "justify-center" : ""}`}
+          aria-label={localizedCopy.expand}
+        >
+          <ExpandIcon className="h-4 w-4" />
+          {!collapsed && <span>{localizedCopy.expand}</span>}
+        </button>
         <nav className="space-y-2" aria-label={localizedCopy.navigation}>
-          {visibleSections.map((item) => {
+          {visibleSections.map(item => {
             const active = section === item.id;
             return (
-              <button key={item.id} onClick={() => { onSection(item.id); setNavOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-semibold transition ${active ? "bg-[#f2ead8] text-[#2f3e34]" : "text-[#c9cbb9] hover:bg-[#415045] hover:text-[#f2ead8]"}`}>
+              <button
+                key={item.id}
+                onClick={() => {
+                  onSection(item.id);
+                  setNavOpen(false);
+                }}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-start text-sm font-semibold transition ${active ? "bg-[#f2ead8] text-[#2f3e34]" : "text-[#c9cbb9] hover:bg-[#415045] hover:text-[#f2ead8]"}`}
+              >
                 <NavIcon section={item.id} />
-                {!collapsed && <span className="min-w-0 flex-1 whitespace-normal leading-snug">{isArabic ? item.arabicLabel : item.label}</span>}
+                {!collapsed && (
+                  <span className="min-w-0 flex-1 whitespace-normal leading-snug">
+                    {isArabic ? item.arabicLabel : item.label}
+                  </span>
+                )}
               </button>
             );
           })}
         </nav>
         <div className="mt-auto border-t border-[#627064] pt-5">
-          <p className="mono text-[9px] uppercase tracking-[.18em] text-[#aab5a4]">GHEIR / 2026</p>
+          <p className="mono text-[9px] uppercase tracking-[.18em] text-[#aab5a4]">
+            GHEIR / 2026
+          </p>
         </div>
       </aside>
-      <main className={`flex min-h-0 flex-1 flex-col overflow-hidden transition-[padding] ${mainOffset}`}>
+      <main
+        className={`flex min-h-0 flex-1 flex-col overflow-hidden transition-[padding] ${mainOffset}`}
+      >
         <div className="mx-auto flex max-w-[1500px] w-full shrink-0 items-center justify-between gap-4 px-5 pt-5 md:px-9">
           <div className="hidden items-center gap-3 md:flex">
-            <span className={`h-2 w-2 rounded-full ${connection.ok ? "bg-[#6e8b63]" : "bg-[#9a5537]"}`} />
-            <span className="mono text-[10px] uppercase tracking-[.16em] text-[#817664]">{connection.label}</span>
+            <span
+              className={`h-2 w-2 rounded-full ${connection.ok ? "bg-[#6e8b63]" : "bg-[#9a5537]"}`}
+            />
+            <span className="mono text-[10px] uppercase tracking-[.16em] text-[#817664]">
+              {connection.label}
+            </span>
           </div>
           <div className="ms-auto flex items-center gap-2">
-            <span className="mono hidden text-[9px] uppercase tracking-[.14em] text-[#817664] sm:inline">{t("Preview role", "معاينة الدور")}</span>
-            <div className="flex rounded-full border border-[#cdbb9c] bg-[#f7f0e3] p-1">{(["cashier", "admin"] as UserRole[]).map((item) => <button key={item} onClick={() => onRole(item)} className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${role === item ? "bg-[#2f3e34] text-[#f2ead8]" : "text-[#71675b] hover:text-[#2f3e34]"}`}>{isArabic ? roleLabelAr[item] : roleCopy[item].label}</button>)}</div>
-            <div className="hidden h-9 w-9 items-center justify-center rounded-full bg-[#2f3e34] text-xs font-bold text-[#f2ead8] sm:flex">{initialsForRole(role)}</div>
-            <button type="button" onClick={onLogout} className="hidden items-center gap-2 rounded-xl border border-[#cdbb9c] bg-[#eadfc9] px-3 py-2 text-xs font-bold text-[#2f3e34] hover:bg-[#dfd0b5] sm:inline-flex" aria-label={t("Logout", "تسجيل الخروج")}>
+            <span className="mono hidden text-[9px] uppercase tracking-[.14em] text-[#817664] sm:inline">
+              {t("Preview role", "معاينة الدور")}
+            </span>
+            <div className="flex rounded-full border border-[#cdbb9c] bg-[#f7f0e3] p-1">
+              {(["cashier", "admin"] as UserRole[]).map(item => (
+                <button
+                  key={item}
+                  onClick={() => onRole(item)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${role === item ? "bg-[#2f3e34] text-[#f2ead8]" : "text-[#71675b] hover:text-[#2f3e34]"}`}
+                >
+                  {isArabic ? roleLabelAr[item] : roleCopy[item].label}
+                </button>
+              ))}
+            </div>
+            <div className="hidden h-9 w-9 items-center justify-center rounded-full bg-[#2f3e34] text-xs font-bold text-[#f2ead8] sm:flex">
+              {initialsForRole(role)}
+            </div>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="hidden items-center gap-2 rounded-xl border border-[#cdbb9c] bg-[#eadfc9] px-3 py-2 text-xs font-bold text-[#2f3e34] hover:bg-[#dfd0b5] sm:inline-flex"
+              aria-label={t("Logout", "تسجيل الخروج")}
+            >
               <LogOut className="h-4 w-4" /> {t("Logout", "خروج")}
             </button>
           </div>
         </div>
-        {notice && <div className="mx-5 mt-4 flex shrink-0 items-center gap-2 rounded-xl border border-[#d7b884] bg-[#fff5de] px-4 py-3 text-sm text-[#6e4b2e] md:mx-9"><ShieldCheck className="h-4 w-4" />{notice}</div>}
-        <div className="min-h-0 flex-1 overflow-hidden p-5 md:p-9">{children}</div>
+        {notice && (
+          <div className="mx-5 mt-4 flex shrink-0 items-center gap-2 rounded-xl border border-[#d7b884] bg-[#fff5de] px-4 py-3 text-sm text-[#6e4b2e] md:mx-9">
+            <ShieldCheck className="h-4 w-4" />
+            {notice}
+          </div>
+        )}
+        <div className="min-h-0 flex-1 overflow-hidden p-5 md:p-9">
+          {children}
+        </div>
       </main>
     </div>
   );
 }
 
-function Register({ products, sales, onSale, role, isArabic, receiptLogo }: { products: ProductRecord[]; sales: SaleRecord[]; onSale: (sale: SaleRecord, lines: CartLine[]) => void; role: UserRole; isArabic: boolean; receiptLogo: string }) {
-  const [search, setSearch] = useState(""); const [category, setCategory] = useState("All"); const [scanValue, setScanValue] = useState(""); const [cart, setCart] = useState<Record<number, number>>({}); const [payment, setPayment] = useState<PaymentMethod>("cash"); const [lastSale, setLastSale] = useState<SaleRecord | null>(null); const [discount, setDiscount] = useState(""); const [tendered, setTendered] = useState(""); const [manualProducts, setManualProducts] = useState<ProductRecord[]>([]); const [manualName, setManualName] = useState(""); const [manualCost, setManualCost] = useState(""); const scanRef = useRef<HTMLInputElement>(null);
+function Register({
+  products,
+  sales,
+  onSale,
+  role,
+  isArabic,
+  receiptLogo,
+}: {
+  products: ProductRecord[];
+  sales: SaleRecord[];
+  onSale: (sale: SaleRecord, lines: CartLine[]) => void;
+  role: UserRole;
+  isArabic: boolean;
+  receiptLogo: string;
+}) {
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("All");
+  const [scanValue, setScanValue] = useState("");
+  const [cart, setCart] = useState<Record<number, number>>({});
+  const [payment, setPayment] = useState<PaymentMethod>("cash");
+  const [lastSale, setLastSale] = useState<SaleRecord | null>(null);
+  const [discount, setDiscount] = useState("");
+  const [tendered, setTendered] = useState("");
+  const [manualProducts, setManualProducts] = useState<ProductRecord[]>([]);
+  const [manualName, setManualName] = useState("");
+  const [manualCost, setManualCost] = useState("");
+  const scanRef = useRef<HTMLInputElement>(null);
   const t = makeT(isArabic);
-  const money = (value: number) => formatMoney(value, isArabic ? "ar-EG" : "en-EG");
-  const filtered = products.filter((product) => (category === "All" || product.category === category) && productSearchText(product).includes(search.toLowerCase()));
-  const allProducts = [...products, ...manualProducts]; const cartItems = Object.entries(cart).map(([id, quantity]) => ({ product: allProducts.find((item) => item.id === Number(id)), quantity })).filter((item): item is CartLine => Boolean(item.product && item.quantity > 0));
-  const amount = (value: string) => { const parsed = Number(value); return Number.isFinite(parsed) && parsed > 0 ? parsed : 0; };
+  const money = (value: number) =>
+    formatMoney(value, isArabic ? "ar-EG" : "en-EG");
+  const filtered = products.filter(
+    product =>
+      (category === "All" || product.category === category) &&
+      productSearchText(product).includes(search.toLowerCase())
+  );
+  const allProducts = [...products, ...manualProducts];
+  const cartItems = Object.entries(cart)
+    .map(([id, quantity]) => ({
+      product: allProducts.find(item => item.id === Number(id)),
+      quantity,
+    }))
+    .filter((item): item is CartLine =>
+      Boolean(item.product && item.quantity > 0)
+    );
+  const amount = (value: string) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  };
   const subtotal = summarizeCart(cartItems).subtotal;
   const discountValue = amount(discount);
   const total = Math.max(0, subtotal - discountValue);
   const tenderedValue = tendered.trim() ? amount(tendered) : 0;
-  const change = cartItems.length > 0 && tenderedValue > 0 ? Math.max(0, tenderedValue - total) : 0;
-  const linesLabel = cartItems.length === 1 ? t("1 line", "صنف واحد") : `${cartItems.length} ${t("lines", "أصناف")}`;
-  const addProduct = (product: ProductRecord) => setCart((current) => ({ ...current, [product.id]: Math.min(product.stock, (current[product.id] ?? 0) + 1) }));
-  const updateQuantity = (product: ProductRecord, direction: number) => setCart((current) => { const quantity = Math.max(0, Math.min(product.stock, (current[product.id] ?? 0) + direction)); const next = { ...current }; if (quantity) next[product.id] = quantity; else delete next[product.id]; return next; });
-  const addManualItem = () => { const itemName = safeTrim(manualName); const itemCost = amount(manualCost); if (!itemName || itemCost <= 0) return; const manual: ProductRecord = { id: Date.now() * -1, name: itemName, arabicName: null, englishName: itemName, category: "Manual", categoryAr: null, baseSku: "MANUAL", price: itemCost, stock: 9999, color: "Custom", colorArabic: null, colorCode: "CSTM", shape: "rect" }; setManualProducts((current) => [...current, manual]); setCart((current) => ({ ...current, [manual.id]: 1 })); setManualName(""); setManualCost(""); };
-  const handleScan = () => { const value = scanValue.trim().toLowerCase(); if (!value) return; const match = products.find((product) => productSearchText(product).includes(value) || `${product.baseSku}-${product.colorCode}`.toLowerCase() === value); if (match) { addProduct(match); setScanValue(""); } else setSearch(scanValue); };
-  const completeSale = () => { if (!cartItems.length) return; const sale = createDemoSale(cartItems, payment, { discount: discountValue, tendered: tenderedValue || undefined }); onSale(sale, cartItems); setLastSale(sale); setCart({}); setDiscount(""); setTendered(""); setManualProducts([]); setManualName(""); setManualCost(""); };
-  return <div className="display-in flex min-h-full flex-col"><div className="register-layout mt-6 grid min-h-0 flex-none items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]"><section className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-5 sm:p-6"><div className="flex shrink-0 flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">{t("The collection", "التشكيلة")}</p><h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">{t("Choose a piece", "اختر قطعة")}</h2></div><div className="relative w-full sm:w-64"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#817664]" /><input value={search} onChange={(event) => setSearch(event.target.value)} className="h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] ps-9 pe-3 text-sm outline-none ring-[#5c4033] focus:ring-2" placeholder={t("Search name, SKU…", "ابحث بالاسم أو الكود…")} /></div></div><div className="mt-5 flex shrink-0 gap-2 overflow-auto pb-1">{categories.map((item) => <button key={item} onClick={() => setCategory(item)} className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition ${category === item ? "bg-[#2f3e34] text-[#f2ead8]" : "bg-[#eadfc9] text-[#71675b] hover:bg-[#dfd0b5]"}`}>{isArabic ? categoriesAr[item] || item : item}</button>)}</div><div className="register-products scrollbar-warm mt-5 grid min-h-0 flex-1 content-start grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4 overflow-y-auto py-3 pe-3">{filtered.map((product) => <ProductCard key={product.id} product={product} onAdd={() => addProduct(product)} isArabic={isArabic} />)}</div>{!filtered.length && <div className="flex min-h-52 flex-col items-center justify-center text-center text-sm text-[#817664]"><Search className="mb-2 h-5 w-5" />{t("No matching pieces. Try a different search.", "لا توجد قطع مطابقة. جرّب بحثاً مختلفاً.")}</div>}</section><aside className="receipt-panel flex min-h-0 flex-col overflow-visible rounded-2xl border border-[#cdbb9c] bg-[#2f3e34] p-5 text-[#f2ead8]"><div className="flex shrink-0 items-start justify-between"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#bfc8b9]">{t("Counter / active", "العداد / نشط")}</p><h2 className="serif mt-1 text-2xl font-semibold">{t("Current order", "الطلب الحالي")}</h2></div><span className="rounded-full bg-[#415045] px-2 py-1 mono text-[9px] text-[#d9c7a3]">{linesLabel}</span></div><div className="mt-5 shrink-0 rounded-xl border border-[#526156] bg-[#26352c] p-3"><div className="flex items-center gap-2"><ScanLine className="h-4 w-4 text-[#d9c7a3]" /><input ref={scanRef} value={scanValue} onChange={(event) => setScanValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") handleScan(); }} className="min-w-0 flex-1 bg-transparent text-sm text-[#f2ead8] outline-none placeholder:text-[#92a093]" placeholder={t(scannerPlaceholder, "امسح الكود أو اكتب اسم المنتج…")} /><kbd className="rounded bg-[#415045] px-1.5 py-1 mono text-[9px] text-[#bfc8b9]">F2</kbd></div></div><div className="scrollbar-warm mt-5 min-h-0 flex-1 space-y-3 overflow-auto">{cartItems.length ? cartItems.map(({ product, quantity }) => <div key={product.id} className="flex items-center gap-3 border-b border-[#526156] pb-3"><ProductArt product={product} compact /><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{product.arabicName || product.name}</p><p className="mt-0.5 text-xs text-[#bfc8b9]">{money(product.price)} · {product.color}{product.colorArabic ? ` · ${product.colorArabic}` : ""}</p><div className="mt-2 flex items-center gap-2"><button onClick={() => updateQuantity(product, -1)} className="rounded bg-[#415045] p-1 hover:bg-[#526156]" aria-label={t("Decrease quantity", "تقليل الكمية")}><Minus className="h-3 w-3" /></button><span className="mono w-5 text-center text-xs">{quantity}</span><button onClick={() => updateQuantity(product, 1)} className="rounded bg-[#415045] p-1 hover:bg-[#526156]" aria-label={t("Increase quantity", "زيادة الكمية")}><Plus className="h-3 w-3" /></button></div></div><button onClick={() => updateQuantity(product, -quantity)} className="self-start text-[#aab5a4] hover:text-[#f2ead8]" aria-label={t("Remove item", "إزالة الصنف")}><Trash2 className="h-4 w-4" /></button></div>) : <div className="flex h-full min-h-[180px] flex-col items-center justify-center text-center text-sm text-[#9eaa9f]"><ScanLine className="mb-3 h-7 w-7 text-[#d9c7a3]" /><p>{t(noCartLabel, "عدادك فارغ. امسح أو اختر قطعة للبدء.")}</p><p className="mt-2 text-xs text-[#7f9183]">{t(scannerFlowCopy, "امسح كودًا فريدًا للتعرف على النسخة الفيزيائية عند الدفع.")}</p></div>}</div><div className="mt-4 shrink-0 rounded-xl border border-[#526156] bg-[#26352c] p-3"><div className="flex items-center justify-between gap-2 text-[11px] font-bold text-[#bfc8b9]"><span>{t("Add a line manually", "أضف صنفاً يدوياً")}</span></div><div className="mt-2 flex items-center gap-2"><input value={manualName} onChange={(event) => setManualName(event.target.value)} className="min-w-0 flex-1 rounded-lg border border-[#526156] bg-[#f2ead8] px-2 py-1.5 text-sm text-[#2f3e34] outline-none focus:ring-2 focus:ring-[#d9c7a3]" placeholder={t("Item name", "اسم الصنف")} aria-label={t("Manual item name", "اسم الصنف اليدوي")} /><input type="number" inputMode="decimal" min="0" value={manualCost} onChange={(event) => setManualCost(event.target.value)} className="w-24 rounded-lg border border-[#526156] bg-[#f2ead8] px-2 py-1.5 text-end text-sm text-[#2f3e34] outline-none focus:ring-2 focus:ring-[#d9c7a3]" placeholder={t("Cost", "التكلفة")} aria-label={t("Manual item cost", "تكلفة الصنف اليدوي")} /><button onClick={addManualItem} className="shrink-0 rounded-lg bg-[#f2ead8] px-2.5 py-1.5 text-xs font-bold text-[#2f3e34] hover:bg-white" aria-label={t("Add item", "إضافة صنف")}><Plus className="h-4 w-4" /></button></div></div><div className="mt-4 shrink-0 space-y-2.5 border-t border-[#526156] pt-4 text-sm"><div className="flex items-center justify-between text-[#bfc8b9]"><span>{t("Subtotal", "المجموع الفرعي")}</span><span>{money(subtotal)}</span></div><div className="flex items-center justify-between gap-3 text-[#bfc8b9]"><span>{t("Discount", "الخصم")}</span><input type="number" inputMode="decimal" min="0" value={discount} onChange={(event) => setDiscount(event.target.value)} className="h-8 w-24 rounded-lg border border-[#526156] bg-[#26352c] px-2 text-end text-sm text-[#f2ead8] outline-none focus:ring-2 focus:ring-[#d9c7a3]" placeholder="0" aria-label={t("Discount amount", "مبلغ الخصم")} /></div><div className="flex justify-between pt-2 text-lg font-bold"><span>{t("Total", "الإجمالي")}</span><span className="serif text-2xl text-[#d9c7a3]">{money(total)}</span></div>{change > 0 && <div className="flex justify-between text-[#b8d6ae]"><span>{t("Change", "الباقي")}</span><span className="font-bold">{money(change)}</span></div>}</div><div className="mt-5 grid shrink-0 grid-cols-3 gap-2">{(["cash", "card", "instapay"] as PaymentMethod[]).map((method) => { const Icon = method === "cash" ? Banknote : method === "card" ? CreditCard : QrCode; return <button key={method} onClick={() => setPayment(method)} className={`rounded-xl border px-2 py-2 text-start transition ${payment === method ? "border-[#d9c7a3] bg-[#415045]" : "border-[#526156] hover:bg-[#415045]"}`}><Icon className="mb-2 h-4 w-4 text-[#d9c7a3]" /><span className="block text-xs font-bold">{isArabic ? paymentAr[method].label : paymentLabels[method]}</span><span className="mt-1 block text-[9px] text-[#aab5a4]">{isArabic ? paymentAr[method].detail : paymentDetails[method]}</span></button>; })}</div><label className="mt-4 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[#526156] bg-[#26352c] px-3 py-2.5"><span className="mono text-[9px] uppercase tracking-[.14em] text-[#bfc8b9]">{t("Received (manual)", "المستلم (يدوي)")}</span><input type="number" inputMode="decimal" min="0" value={tendered} onChange={(event) => setTendered(event.target.value)} className="min-w-0 flex-1 bg-transparent text-end text-sm text-[#f2ead8] outline-none placeholder:text-[#92a093]" placeholder="0" aria-label={t("Received amount", "المبلغ المستلم")} /></label><button disabled={!cartItems.length} onClick={completeSale} className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#f2ead8] px-4 py-3 text-sm font-extrabold text-[#2f3e34] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"><Check className="h-4 w-4" /> {t("Complete sale", "إتمام البيع")} {isArabic ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</button>{lastSale && <div className="mt-4 rounded-xl border border-[#6e8b63]/60 bg-[#415045] p-3"><div className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 text-[#b8d6ae]" /><div className="flex-1"><p className="text-sm font-bold">{t("Sale complete", "تم البيع")}</p><p className="mt-1 text-xs text-[#bfc8b9]">{lastSale.receiptNumber} · {money(lastSale.total)}</p></div><button onClick={() => openPrintWindow(t("GHEIR receipt", "إيصال غيّر"), buildReceiptMarkup(lastSale, receiptLogo))} className="rounded-lg bg-[#f2ead8] px-2.5 py-1.5 text-xs font-bold text-[#2f3e34]">{t("Print", "طباعة")}</button></div></div>}<p className="mt-4 shrink-0 text-[10px] leading-relaxed text-[#879488]">{t(checkoutNote, "تُدخل الخصومات والضرائب يدوياً عند العداد.")}</p></aside></div></div>;
+  const change =
+    cartItems.length > 0 && tenderedValue > 0
+      ? Math.max(0, tenderedValue - total)
+      : 0;
+  const linesLabel =
+    cartItems.length === 1
+      ? t("1 line", "صنف واحد")
+      : `${cartItems.length} ${t("lines", "أصناف")}`;
+  const addProduct = (product: ProductRecord) =>
+    setCart(current => ({
+      ...current,
+      [product.id]: Math.min(product.stock, (current[product.id] ?? 0) + 1),
+    }));
+  const updateQuantity = (product: ProductRecord, direction: number) =>
+    setCart(current => {
+      const quantity = Math.max(
+        0,
+        Math.min(product.stock, (current[product.id] ?? 0) + direction)
+      );
+      const next = { ...current };
+      if (quantity) next[product.id] = quantity;
+      else delete next[product.id];
+      return next;
+    });
+  const addManualItem = () => {
+    const itemName = safeTrim(manualName);
+    const itemCost = amount(manualCost);
+    if (!itemName || itemCost <= 0) return;
+    const manual: ProductRecord = {
+      id: Date.now() * -1,
+      name: itemName,
+      arabicName: null,
+      englishName: itemName,
+      category: "Manual",
+      categoryAr: null,
+      baseSku: "MANUAL",
+      price: itemCost,
+      stock: 9999,
+      color: "Custom",
+      colorArabic: null,
+      colorCode: "CSTM",
+      shape: "rect",
+    };
+    setManualProducts(current => [...current, manual]);
+    setCart(current => ({ ...current, [manual.id]: 1 }));
+    setManualName("");
+    setManualCost("");
+  };
+  const handleScan = () => {
+    const value = scanValue.trim().toLowerCase();
+    if (!value) return;
+    const match = products.find(
+      product =>
+        productSearchText(product).includes(value) ||
+        `${product.baseSku}-${product.colorCode}`.toLowerCase() === value
+    );
+    if (match) {
+      addProduct(match);
+      setScanValue("");
+    } else setSearch(scanValue);
+  };
+  const completeSale = () => {
+    if (!cartItems.length) return;
+    const sale = createDemoSale(cartItems, payment, {
+      discount: discountValue,
+      tendered: tenderedValue || undefined,
+    });
+    onSale(sale, cartItems);
+    setLastSale(sale);
+    setCart({});
+    setDiscount("");
+    setTendered("");
+    setManualProducts([]);
+    setManualName("");
+    setManualCost("");
+  };
+  return (
+    <div className="display-in flex min-h-full flex-col">
+      <div className="register-layout mt-6 grid min-h-0 flex-none items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <section className="flex min-h-0 min-w-0 flex-col rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-5 sm:p-6">
+          <div className="flex shrink-0 flex-col justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">
+                {t("The collection", "التشكيلة")}
+              </p>
+              <h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">
+                {t("Choose a piece", "اختر قطعة")}
+              </h2>
+            </div>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#817664]" />
+              <input
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+                className="h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] ps-9 pe-3 text-sm outline-none ring-[#5c4033] focus:ring-2"
+                placeholder={t("Search name, SKU…", "ابحث بالاسم أو الكود…")}
+              />
+            </div>
+          </div>
+          <div className="mt-5 flex shrink-0 gap-2 overflow-auto pb-1">
+            {categories.map(item => (
+              <button
+                key={item}
+                onClick={() => setCategory(item)}
+                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-bold transition ${category === item ? "bg-[#2f3e34] text-[#f2ead8]" : "bg-[#eadfc9] text-[#71675b] hover:bg-[#dfd0b5]"}`}
+              >
+                {isArabic ? categoriesAr[item] || item : item}
+              </button>
+            ))}
+          </div>
+          <div className="register-products scrollbar-warm mt-5 grid min-h-0 flex-1 content-start grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4 overflow-y-auto py-3 pe-3">
+            {filtered.map(product => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onAdd={() => addProduct(product)}
+                isArabic={isArabic}
+              />
+            ))}
+          </div>
+          {!filtered.length && (
+            <div className="flex min-h-52 flex-col items-center justify-center text-center text-sm text-[#817664]">
+              <Search className="mb-2 h-5 w-5" />
+              {t(
+                "No matching pieces. Try a different search.",
+                "لا توجد قطع مطابقة. جرّب بحثاً مختلفاً."
+              )}
+            </div>
+          )}
+        </section>
+        <aside className="receipt-panel flex min-h-0 flex-col overflow-visible rounded-2xl border border-[#cdbb9c] bg-[#2f3e34] p-5 text-[#f2ead8]">
+          <div className="flex shrink-0 items-start justify-between">
+            <div>
+              <p className="mono text-[9px] uppercase tracking-[.18em] text-[#bfc8b9]">
+                {t("Counter / active", "العداد / نشط")}
+              </p>
+              <h2 className="serif mt-1 text-2xl font-semibold">
+                {t("Current order", "الطلب الحالي")}
+              </h2>
+            </div>
+            <span className="rounded-full bg-[#415045] px-2 py-1 mono text-[9px] text-[#d9c7a3]">
+              {linesLabel}
+            </span>
+          </div>
+          <div className="mt-5 shrink-0 rounded-xl border border-[#526156] bg-[#26352c] p-3">
+            <div className="flex items-center gap-2">
+              <ScanLine className="h-4 w-4 text-[#d9c7a3]" />
+              <input
+                ref={scanRef}
+                value={scanValue}
+                onChange={event => setScanValue(event.target.value)}
+                onKeyDown={event => {
+                  if (event.key === "Enter") handleScan();
+                }}
+                className="min-w-0 flex-1 bg-transparent text-sm text-[#f2ead8] outline-none placeholder:text-[#92a093]"
+                placeholder={t(
+                  scannerPlaceholder,
+                  "امسح الكود أو اكتب اسم المنتج…"
+                )}
+              />
+              <kbd className="rounded bg-[#415045] px-1.5 py-1 mono text-[9px] text-[#bfc8b9]">
+                F2
+              </kbd>
+            </div>
+          </div>
+          <div className="scrollbar-warm mt-5 min-h-0 flex-1 space-y-3 overflow-auto">
+            {cartItems.length ? (
+              cartItems.map(({ product, quantity }) => (
+                <div
+                  key={product.id}
+                  className="flex items-center gap-3 border-b border-[#526156] pb-3"
+                >
+                  <ProductArt product={product} compact />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold">
+                      {product.arabicName || product.name}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[#bfc8b9]">
+                      {money(product.price)} · {product.color}
+                      {product.colorArabic ? ` · ${product.colorArabic}` : ""}
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        onClick={() => updateQuantity(product, -1)}
+                        className="rounded bg-[#415045] p-1 hover:bg-[#526156]"
+                        aria-label={t("Decrease quantity", "تقليل الكمية")}
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="mono w-5 text-center text-xs">
+                        {quantity}
+                      </span>
+                      <button
+                        onClick={() => updateQuantity(product, 1)}
+                        className="rounded bg-[#415045] p-1 hover:bg-[#526156]"
+                        aria-label={t("Increase quantity", "زيادة الكمية")}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => updateQuantity(product, -quantity)}
+                    className="self-start text-[#aab5a4] hover:text-[#f2ead8]"
+                    aria-label={t("Remove item", "إزالة الصنف")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="flex h-full min-h-[180px] flex-col items-center justify-center text-center text-sm text-[#9eaa9f]">
+                <ScanLine className="mb-3 h-7 w-7 text-[#d9c7a3]" />
+                <p>{t(noCartLabel, "عدادك فارغ. امسح أو اختر قطعة للبدء.")}</p>
+                <p className="mt-2 text-xs text-[#7f9183]">
+                  {t(
+                    scannerFlowCopy,
+                    "امسح كودًا فريدًا للتعرف على النسخة الفيزيائية عند الدفع."
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="mt-4 shrink-0 rounded-xl border border-[#526156] bg-[#26352c] p-3">
+            <div className="flex items-center justify-between gap-2 text-[11px] font-bold text-[#bfc8b9]">
+              <span>{t("Add a line manually", "أضف صنفاً يدوياً")}</span>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                value={manualName}
+                onChange={event => setManualName(event.target.value)}
+                className="min-w-0 flex-1 rounded-lg border border-[#526156] bg-[#f2ead8] px-2 py-1.5 text-sm text-[#2f3e34] outline-none focus:ring-2 focus:ring-[#d9c7a3]"
+                placeholder={t("Item name", "اسم الصنف")}
+                aria-label={t("Manual item name", "اسم الصنف اليدوي")}
+              />
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                value={manualCost}
+                onChange={event => setManualCost(event.target.value)}
+                className="w-24 rounded-lg border border-[#526156] bg-[#f2ead8] px-2 py-1.5 text-end text-sm text-[#2f3e34] outline-none focus:ring-2 focus:ring-[#d9c7a3]"
+                placeholder={t("Cost", "التكلفة")}
+                aria-label={t("Manual item cost", "تكلفة الصنف اليدوي")}
+              />
+              <button
+                onClick={addManualItem}
+                className="shrink-0 rounded-lg bg-[#f2ead8] px-2.5 py-1.5 text-xs font-bold text-[#2f3e34] hover:bg-white"
+                aria-label={t("Add item", "إضافة صنف")}
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div className="mt-4 shrink-0 space-y-2.5 border-t border-[#526156] pt-4 text-sm">
+            <div className="flex items-center justify-between text-[#bfc8b9]">
+              <span>{t("Subtotal", "المجموع الفرعي")}</span>
+              <span>{money(subtotal)}</span>
+            </div>
+            <div className="flex items-center justify-between gap-3 text-[#bfc8b9]">
+              <span>{t("Discount", "الخصم")}</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                value={discount}
+                onChange={event => setDiscount(event.target.value)}
+                className="h-8 w-24 rounded-lg border border-[#526156] bg-[#26352c] px-2 text-end text-sm text-[#f2ead8] outline-none focus:ring-2 focus:ring-[#d9c7a3]"
+                placeholder="0"
+                aria-label={t("Discount amount", "مبلغ الخصم")}
+              />
+            </div>
+            <div className="flex justify-between pt-2 text-lg font-bold">
+              <span>{t("Total", "الإجمالي")}</span>
+              <span className="serif text-2xl text-[#d9c7a3]">
+                {money(total)}
+              </span>
+            </div>
+            {change > 0 && (
+              <div className="flex justify-between text-[#b8d6ae]">
+                <span>{t("Change", "الباقي")}</span>
+                <span className="font-bold">{money(change)}</span>
+              </div>
+            )}
+          </div>
+          <div className="mt-5 grid shrink-0 grid-cols-3 gap-2">
+            {(["cash", "card", "instapay"] as PaymentMethod[]).map(method => {
+              const Icon =
+                method === "cash"
+                  ? Banknote
+                  : method === "card"
+                    ? CreditCard
+                    : QrCode;
+              return (
+                <button
+                  key={method}
+                  onClick={() => setPayment(method)}
+                  className={`rounded-xl border px-2 py-2 text-start transition ${payment === method ? "border-[#d9c7a3] bg-[#415045]" : "border-[#526156] hover:bg-[#415045]"}`}
+                >
+                  <Icon className="mb-2 h-4 w-4 text-[#d9c7a3]" />
+                  <span className="block text-xs font-bold">
+                    {isArabic ? paymentAr[method].label : paymentLabels[method]}
+                  </span>
+                  <span className="mt-1 block text-[9px] text-[#aab5a4]">
+                    {isArabic
+                      ? paymentAr[method].detail
+                      : paymentDetails[method]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <label className="mt-4 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[#526156] bg-[#26352c] px-3 py-2.5">
+            <span className="mono text-[9px] uppercase tracking-[.14em] text-[#bfc8b9]">
+              {t("Received (manual)", "المستلم (يدوي)")}
+            </span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min="0"
+              value={tendered}
+              onChange={event => setTendered(event.target.value)}
+              className="min-w-0 flex-1 bg-transparent text-end text-sm text-[#f2ead8] outline-none placeholder:text-[#92a093]"
+              placeholder="0"
+              aria-label={t("Received amount", "المبلغ المستلم")}
+            />
+          </label>
+          <button
+            disabled={!cartItems.length}
+            onClick={completeSale}
+            className="mt-4 flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#f2ead8] px-4 py-3 text-sm font-extrabold text-[#2f3e34] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Check className="h-4 w-4" /> {t("Complete sale", "إتمام البيع")}{" "}
+            {isArabic ? (
+              <ChevronLeft className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </button>
+          {lastSale && (
+            <div className="mt-4 rounded-xl border border-[#6e8b63]/60 bg-[#415045] p-3">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 text-[#b8d6ae]" />
+                <div className="flex-1">
+                  <p className="text-sm font-bold">
+                    {t("Sale complete", "تم البيع")}
+                  </p>
+                  <p className="mt-1 text-xs text-[#bfc8b9]">
+                    {lastSale.receiptNumber} · {money(lastSale.total)}
+                  </p>
+                </div>
+                <button
+                  onClick={() =>
+                    openPrintWindow(
+                      t("GHEIR receipt", "إيصال غيّر"),
+                      buildReceiptMarkup(lastSale, receiptLogo)
+                    )
+                  }
+                  className="rounded-lg bg-[#f2ead8] px-2.5 py-1.5 text-xs font-bold text-[#2f3e34]"
+                >
+                  {t("Print", "طباعة")}
+                </button>
+              </div>
+            </div>
+          )}
+          <p className="mt-4 shrink-0 text-[10px] leading-relaxed text-[#879488]">
+            {t(checkoutNote, "تُدخل الخصومات والضرائب يدوياً عند العداد.")}
+          </p>
+        </aside>
+      </div>
+    </div>
+  );
 }
 
-function Orders({ sales, isArabic, receiptLogo }: { sales: SaleRecord[]; isArabic: boolean; receiptLogo: string }) {
+function Orders({
+  sales,
+  isArabic,
+  receiptLogo,
+}: {
+  sales: SaleRecord[];
+  isArabic: boolean;
+  receiptLogo: string;
+}) {
   const [selectedSale, setSelectedSale] = useState<SaleRecord | null>(null);
   const t = makeT(isArabic);
   const locale = isArabic ? "ar" : "en";
   const dateLocale = isArabic ? "ar-EG" : "en-EG";
   const money = (value: number) => formatMoney(value, dateLocale);
-  const dated = (value: string | Date) => `${formatDate(value, locale)} ${t("at", "على")} ${formatTime(value, locale)}`;
-  const bars = [4600, 7100, 5200, 8400, 6300, 10200, 12640]; const highest = Math.max(...bars);
-  const printSale = (sale: SaleRecord) => openPrintWindow(`${t("Receipt", "إيصال")} ${sale.receiptNumber}`, buildReceiptMarkup(sale, receiptLogo));
-  const linesFor = (count: number) => count === 1 ? t("1 line", "صنف واحد") : `${count} ${t("lines", "أصناف")}`;
-  return <div className="display-in"><PageHeading eyebrow={t("GHEIR / Orders", "GHEIR / الطلبات")} title={t("Sales journal.", "سجل المبيعات.")} detail={t("Review completed sales and reprint receipts.", "راجع المبيعات المكتملة وأعد طباعة الإيصالات.")} /><div className="grid gap-5 xl:grid-cols-[1.15fr_.85fr]"><section className="rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-5"><div className="flex items-start justify-between"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">{t("Recent sales", "أحدث المبيعات")}</p><h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">{t("A considered record", "سجل مدروس")}</h2></div><History className="h-5 w-5 text-[#5c4033]" /></div><div className="mt-5 divide-y divide-[#d9c7a3]">{sales.length ? sales.map((sale) => <button type="button" key={sale.id} onClick={() => setSelectedSale(sale)} className="flex w-full items-center justify-between gap-4 py-4 text-start transition hover:bg-[#eadfc9]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5c4033]" aria-label={`${t("View order", "عرض الطلب")} ${sale.receiptNumber}`}><div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e5d5b5] text-[#5c4033]"><Receipt className="h-4 w-4" /></div><div className="min-w-0"><p className="truncate text-sm font-extrabold text-[#2f3e34]">{sale.receiptNumber}</p><p className="mt-1 text-xs text-[#817664]">{dated(sale.createdAt)} · {linesFor(sale.items.length)}</p></div></div><div className="text-end"><p className="serif text-xl font-semibold text-[#5c4033]">{money(sale.total)}</p><p className="mono mt-1 text-[9px] uppercase tracking-[.12em] text-[#817664]">{isArabic ? paymentAr[sale.paymentMethod].label : paymentLabels[sale.paymentMethod]}</p></div></button>) : <p className="py-10 text-sm text-[#817664]">{t(emptyOrdersCopy, "ستُسجل المبيعات المكتملة هنا بعد أول عملية بيع.")}</p>}</div></section><section className="rounded-2xl border border-[#cdbb9c] bg-[#2f3e34] p-5 text-[#f2ead8]"><div className="flex items-start justify-between"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#bfc8b9]">{t("Weekly rhythm", "الإيقاع الأ��بوعي")}</p><h2 className="serif mt-1 text-2xl font-semibold">{t("The week in motion", "الأسبوع في حركة")}</h2></div><BarChart3 className="h-5 w-5 text-[#d9c7a3]" /></div><div className="mt-8 flex h-52 items-end gap-2 sm:gap-4">{bars.map((value, index) => <div key={index} className="flex flex-1 flex-col items-center gap-2"><div className="w-full rounded-t-lg bg-[#d9c7a3]" style={{ height: `${Math.round((value / highest) * 100)}%` }} /><span className="mono text-[9px] text-[#bfc8b9]">{["M", "T", "W", "T", "F", "S", "S"][index]}</span></div>)}</div></section></div><Dialog open={Boolean(selectedSale)} onOpenChange={(open) => !open && setSelectedSale(null)}><DialogContent className="border-[#cdbb9c] bg-[#f7f0e3] text-[#2f3e34] sm:max-w-lg"><DialogHeader><DialogTitle className="serif text-2xl">{t("Order details", "تفاصيل الطلب")}</DialogTitle><DialogDescription className="text-[#817664]">{selectedSale ? `${selectedSale.receiptNumber} · ${dated(selectedSale.createdAt)}` : ""}</DialogDescription></DialogHeader>{selectedSale && <div className="flex flex-col gap-4"><div className="flex items-center justify-between rounded-xl bg-[#eadfc9] p-3 text-sm"><span className="text-[#817664]">{t("Payment", "الدفع")}</span><span className="font-bold text-[#5c4033]">{isArabic ? paymentAr[selectedSale.paymentMethod].label : paymentLabels[selectedSale.paymentMethod]}</span></div><div className="flex flex-col gap-3">{selectedSale.items.map((item, index) => <div key={`${item.name}-${index}`} className="flex items-center justify-between gap-3 border-b border-[#d9c7a3] pb-3 text-sm"><div><p className="font-bold">{item.name}{item.arabicName ? <span className="ml-2 text-xs font-normal text-[#817664]" dir="rtl">{item.arabicName}</span> : ""}</p><p className="text-xs text-[#817664]">{item.quantity} × {money(item.total / item.quantity)}</p></div><span className="font-bold">{money(item.total)}</span></div>)}</div><div className="flex flex-col gap-2 border-t border-[#cdbb9c] pt-3 text-sm"><div className="flex justify-between"><span>{t("Subtotal", "المجموع الفرعي")}</span><span>{money(selectedSale.items.reduce((sum, item) => sum + item.total, 0))}</span></div>{(selectedSale.discount ?? 0) > 0 && <div className="flex justify-between"><span>{t("Discount", "الخصم")}</span><span>-{money(selectedSale.discount ?? 0)}</span></div>}{(selectedSale.tax ?? 0) > 0 && <div className="flex justify-between"><span>{t("Tax", "الضريبة")}</span><span>{money(selectedSale.tax ?? 0)}</span></div>}<div className="flex justify-between text-lg font-extrabold text-[#5c4033]"><span>{t("Total", "الإجمالي")}</span><span>{money(selectedSale.total)}</span></div></div></div>}<DialogFooter><button type="button" onClick={() => selectedSale && printSale(selectedSale)} className="flex items-center justify-center gap-2 rounded-xl bg-[#2f3e34] px-4 py-3 text-sm font-bold text-[#f2ead8] hover:bg-[#415045]" disabled={!selectedSale}>{t("Print receipt", "طباعة الإيصال")}</button></DialogFooter></DialogContent></Dialog></div>;
-}
-
-function Catalog({ products, onAddProduct, onUpdateProduct, onDeleteProduct, isArabic }: { products: ProductRecord[]; onAddProduct: (product: ProductRecord) => void; onUpdateProduct: (product: ProductRecord) => void; onDeleteProduct: (id: number) => void; isArabic: boolean }) {
-  const [showForm, setShowForm] = useState(false); const [editingId, setEditingId] = useState<number | null>(null); const [viewing, setViewing] = useState<ProductRecord | null>(null); const [deleting, setDeleting] = useState<{ product: ProductRecord | null; bulk: boolean } | null>(null); const [selected, setSelected] = useState<number[]>([]); const [searchQuery, setSearchQuery] = useState(""); const [filterCategory, setFilterCategory] = useState("All"); const [sortKey, setSortKey] = useState("name"); const [sortDir, setSortDir] = useState<"asc" | "desc">("asc"); const [page, setPage] = useState(1); const pageSize = 6;
-  const [name, setName] = useState(""); const [arabicName, setArabicName] = useState(""); const [colorRows, setColorRows] = useState<Array<{ en: string; ar: string; copies: string }>>([{ en: "Clay", ar: "طين", copies: "5" }]); const [category, setCategory] = useState("Tableware"); const [categoryAr, setCategoryAr] = useState("أطباق"); const [customCategory, setCustomCategory] = useState(""); const [categoryOptions, setCategoryOptions] = useState<Array<{ en: string; ar: string }>>(categories.filter((item) => item !== "All").map((item) => ({ en: item, ar: categoriesAr[item] || "" }))); const [price, setPrice] = useState("1200");
-  const t = makeT(isArabic);
-  const money = (value: number) => formatMoney(value, isArabic ? "ar-EG" : "en-EG");
-  const categoryLabel = (en: string) => { const ar = categoriesAr[en] || products.find((p) => p.category === en)?.categoryAr || ""; return isArabic ? (ar || en) : (ar ? `${en} · ${ar}` : en); };
-  const catalogCategoryOptions = ["All", ...Array.from(new Set(products.map((p) => p.category)))];
-  const searched = searchQuery.trim() ? products.filter((product) => productSearchText(product).includes(searchQuery.trim().toLowerCase())) : products;
-  const filtered = filterCategory === "All" ? searched : searched.filter((product) => product.category === filterCategory);
-  const sorted = [...filtered].sort((a, b) => { const value = sortKey === "name" ? a.name.localeCompare(b.name) : sortKey === "sku" ? a.baseSku.localeCompare(b.baseSku) : sortKey === "color" ? a.color.localeCompare(b.color) : sortKey === "price" ? a.price - b.price : sortKey === "stock" ? a.stock - b.stock : stockLabel(a.stock).localeCompare(stockLabel(b.stock)); return sortDir === "asc" ? value : -value; });
-  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize)); const safePage = Math.min(page, pageCount); const paged = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
-  const toggleSelected = (id: number) => setSelected((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
-  const toggleAll = () => setSelected(paged.length && selected.length === paged.length ? [] : paged.map((p) => p.id));
-  const toggleSort = (key: string) => { if (sortKey === key) setSortDir((dir) => dir === "asc" ? "desc" : "asc"); else { setSortKey(key); setSortDir("asc"); } };
-  const sortGlyph = (key: string) => sortKey !== key ? <ArrowUp className="h-3 w-3 opacity-40" /> : sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
-  const importProducts = async (event: React.ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; if (!file) return; const imported = parseProductCsv(await file.text()); imported.forEach(onAddProduct); event.target.value = ""; };
-  const updateColorRow = (index: number, key: "en" | "ar" | "copies", value: string) => setColorRows((current) => current.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
-  const addColorRow = () => setColorRows((current) => [...current, { en: "", ar: "", copies: "" }]);
-  const removeColorRow = (index: number) => setColorRows((current) => current.length > 1 ? current.filter((_, i) => i !== index) : current);
-  const resetForm = () => { setShowForm(false); setEditingId(null); setName(""); setArabicName(""); setColorRows([{ en: "Clay", ar: "طين", copies: "5" }]); setCustomCategory(""); setCategoryAr("أطباق"); setCategory("Tableware"); setPrice("1200"); };
-  const openForm = () => { resetForm(); setShowForm(true); };
-  const openEdit = (product: ProductRecord) => { setShowForm(true); setEditingId(product.id); setName(product.name); setArabicName(product.arabicName || ""); setColorRows([{ en: product.color, ar: product.colorArabic || "", copies: String(product.stock) }]); setCategory(product.category); setCategoryAr(product.categoryAr || categoriesAr[product.category] || ""); setCustomCategory(""); setPrice(String(product.price)); };
-  const save = () => { const family = safeTrim(name); const resolvedCategory = safeTrim(customCategory) || category; const resolvedCategoryAr = safeTrim(categoryAr) || categoriesAr[resolvedCategory] || null; if (customCategory.trim() && !categoryOptions.some((item) => item.en === resolvedCategory)) setCategoryOptions((current) => [...current, { en: resolvedCategory, ar: resolvedCategoryAr || "" }]); const validColors = colorRows.filter((row) => safeTrim(row.en) && asPositiveInt(row.copies, 0) >= 1); if (!family || !validColors.length || new Set(validColors.map((row) => row.en.toUpperCase())).size !== validColors.length) return; validColors.forEach((row, index) => { const record: ProductRecord = { id: editingId ?? Date.now() + index, name: family, englishName: family, arabicName: safeTrim(arabicName) || null, category: resolvedCategory, categoryAr: resolvedCategoryAr, baseSku: generateFamilyCode(family), price: Number(price) || 0, stock: asPositiveInt(row.copies, 0), color: safeTrim(row.en), colorArabic: safeTrim(row.ar) || null, colorCode: generateColorCode(safeTrim(row.en)), barcode: createGeneratedProductSku(family, safeTrim(row.en), 1).replaceAll("-", ""), shape: "round" }; if (editingId !== null && index === 0) onUpdateProduct(record); else onAddProduct(record); }); resetForm(); };
-  const documentColumns = [["name", "Product", "المنتج"], ["sku", "Family SKU", "كود العائلة"], ["color", "Color", "اللون"], ["price", "Unit price", "سعر الوحدة"], ["stock", "Stock", "المخزون"], ["status", "Status", "الحالة"]] as const;
-  return <div className="display-in">
-    <PageHeading eyebrow={t("GHEIR / Catalog", "GHEIR / المنتجات")} title={t("Product shelf.", "رف المنتجات.")} detail={t("Manage families, finishes, stock signals, and serialized copies.", "إدارة العائلات واللمسات النهائية وإشارات المخزون والنسخ المسلسلة.")} action={<div className="flex flex-wrap items-center gap-2"><input id="product-import" type="file" accept=".csv,text/csv" onChange={importProducts} className="sr-only" /><label htmlFor="product-import" className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#cdbb9c] bg-[#eadfc9] px-3 py-3 text-xs font-bold text-[#2f3e34] hover:bg-[#dfd0b5]"><Upload className="h-4 w-4" /> {t("Import", "استيراد")}</label><button onClick={() => downloadCsv(toCsvFilename("gheir-products"), productCsv(products))} className="flex items-center gap-2 rounded-xl border border-[#cdbb9c] bg-[#eadfc9] px-3 py-3 text-xs font-bold text-[#2f3e34] hover:bg-[#dfd0b5]"><Download className="h-4 w-4" /> {t("Export", "تصدير")}</button><button onClick={() => downloadCsv("gheir-product-template.csv", productCsvTemplate())} className="flex items-center gap-2 rounded-xl border border-[#cdbb9c] bg-[#eadfc9] px-3 py-3 text-xs font-bold text-[#2f3e34] hover:bg-[#dfd0b5]"><Download className="h-4 w-4" /> {t("Template", "قالب")}</button><button onClick={openForm} className="flex items-center gap-2 rounded-xl bg-[#2f3e34] px-4 py-3 text-sm font-bold text-[#f2ead8] hover:bg-[#415045]"><Plus className="h-4 w-4" /> {t("Add product", "إضافة منتج")}</button></div>} />
-    {showForm && <div className="mb-5 rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-5"><div className="flex items-start justify-between"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">{editingId === null ? t("New family", "عائلة جديدة") : t("Edit product", "تعديل منتج")}</p><h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">{editingId === null ? t("Add a product line", "أضف خط إنتاج") : t("Update the product line", "حدّث خط الإنتاج")}</h2></div><button onClick={resetForm} className="rounded-lg p-2 text-[#817664] hover:bg-[#eadfc9]"><X className="h-4 w-4" /></button></div>
-      <div className="mt-5 grid gap-3 md:grid-cols-4">
-        <label className="text-xs font-bold text-[#5c4033] md:col-span-2">{t("Product family / name (English)", "عائلة المنتج / الاسم (إنجليزي)")}<input value={name} onChange={(event) => setName(event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]" placeholder={t("e.g. Stoneware cup", "مثال: كوب من الحجر")} /></label>
-        <label className="text-xs font-bold text-[#5c4033] md:col-span-2">{t("Product name (Arabic)", "اسم المنتج (عربي)")}<input dir="rtl" value={arabicName} onChange={(event) => setArabicName(event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]" placeholder={t("e.g. Stoneware cup", "مثال: كوب فخاري")} /></label>
-        <label className="text-xs font-bold text-[#5c4033] md:col-span-2">{t("Colors", "الألوان")} <span className="font-normal text-[#817664]">({t("English + Arabic + copies", "إنجليزي + عربي + نسخ")})</span></label>
-        <div className="md:col-span-2 space-y-2">{colorRows.map((row, colorIndex) => <div key={colorIndex} className="flex items-center gap-2"><input value={row.en} onChange={(event) => updateColorRow(colorIndex, "en", event.target.value)} className="h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]" placeholder={t("Color (English)", "اللون (إنجليزي)")} /><input dir="rtl" value={row.ar} onChange={(event) => updateColorRow(colorIndex, "ar", event.target.value)} className="h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]" placeholder={t("Color (Arabic)", "اللون (عربي)")} /><span className="mono w-14 shrink-0 text-center text-[10px] uppercase text-[#817664]">{generateColorCode(safeTrim(row.en))}</span><input type="number" inputMode="numeric" min="0" value={row.copies} onChange={(event) => updateColorRow(colorIndex, "copies", event.target.value)} className="h-10 w-20 shrink-0 rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-center text-sm outline-none focus:ring-2 focus:ring-[#5c4033]" placeholder="0" aria-label={t("Opening copies for color", "عدد نسخ اللون")} />{colorRows.length > 1 && <button type="button" onClick={() => removeColorRow(colorIndex)} className="rounded-lg p-2 text-[#817664] hover:bg-[#eadfc9]" aria-label={t("Remove color", "حذف اللون")}><X className="h-4 w-4" /></button>}</div>)}
-          <button type="button" onClick={addColorRow} className="flex items-center gap-1.5 rounded-xl border border-[#cdbb9c] bg-[#eadfc9] px-3 py-2 text-xs font-bold text-[#2f3e34] hover:bg-[#dfd0b5]"><Plus className="h-3.5 w-3.5" /> {t("Add color", "إضافة لون")}</button></div>
-        <label className="text-xs font-bold text-[#5c4033]">{t("Category", "الفئة")}<input value={customCategory} onChange={(event) => setCustomCategory(event.target.value)} className="mt-1 h-9 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-xs outline-none focus:ring-2 focus:ring-[#5c4033]" placeholder={t("Or add a new category", "أو أضف فئة جديدة")} /><select value={category} onChange={(event) => { const next = event.target.value; setCategory(next); const option = categoryOptions.find((item) => item.en === next); if (option?.ar) setCategoryAr(option.ar); }} className="mt-1 h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]">{categoryOptions.map((item) => <option key={item.en} value={item.en}>{item.en}{item.ar ? ` · ${item.ar}` : ""}</option>)}</select></label>
-        <label className="text-xs font-bold text-[#5c4033]">{t("Category (Arabic)", "الفئة (عربي)")}<input dir="rtl" value={categoryAr} onChange={(event) => setCategoryAr(event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]" placeholder={t("e.g. أطباق", "مثال: أطباق")} /></label>
-        <label className="text-xs font-bold text-[#5c4033]">{t("Unit price", "سعر الوحدة")}<input type="number" value={price} onChange={(event) => setPrice(event.target.value)} className="mt-1 h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]" /></label>
-        <label className="text-xs font-bold text-[#5c4033]">{t("Copies per color", "النسخ لكل لون")} <span className="font-normal text-[#817664]">({t("counted for each color, not the family", "تُحسب لكل لون وليس للعائلة")})</span></label>
+  const dated = (value: string | Date) =>
+    `${formatDate(value, locale)} ${t("at", "على")} ${formatTime(value, locale)}`;
+  const bars = [4600, 7100, 5200, 8400, 6300, 10200, 12640];
+  const highest = Math.max(...bars);
+  const printSale = (sale: SaleRecord) =>
+    openPrintWindow(
+      `${t("Receipt", "إيصال")} ${sale.receiptNumber}`,
+      buildReceiptMarkup(sale, receiptLogo)
+    );
+  const linesFor = (count: number) =>
+    count === 1 ? t("1 line", "صنف واحد") : `${count} ${t("lines", "أصناف")}`;
+  return (
+    <div className="display-in">
+      <PageHeading
+        eyebrow={t("GHEIR / Orders", "GHEIR / الطلبات")}
+        title={t("Sales journal.", "سجل المبيعات.")}
+        detail={t(
+          "Review completed sales and reprint receipts.",
+          "راجع المبيعات المكتملة وأعد طباعة الإيصالات."
+        )}
+      />
+      <div className="grid gap-5 xl:grid-cols-[1.15fr_.85fr]">
+        <section className="rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">
+                {t("Recent sales", "أحدث المبيعات")}
+              </p>
+              <h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">
+                {t("A considered record", "سجل مدروس")}
+              </h2>
+            </div>
+            <History className="h-5 w-5 text-[#5c4033]" />
+          </div>
+          <div className="mt-5 divide-y divide-[#d9c7a3]">
+            {sales.length ? (
+              sales.map(sale => (
+                <button
+                  type="button"
+                  key={sale.id}
+                  onClick={() => setSelectedSale(sale)}
+                  className="flex w-full items-center justify-between gap-4 py-4 text-start transition hover:bg-[#eadfc9]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5c4033]"
+                  aria-label={`${t("View order", "عرض الطلب")} ${sale.receiptNumber}`}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#e5d5b5] text-[#5c4033]">
+                      <Receipt className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-extrabold text-[#2f3e34]">
+                        {sale.receiptNumber}
+                      </p>
+                      <p className="mt-1 text-xs text-[#817664]">
+                        {dated(sale.createdAt)} · {linesFor(sale.items.length)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-end">
+                    <p className="serif text-xl font-semibold text-[#5c4033]">
+                      {money(sale.total)}
+                    </p>
+                    <p className="mono mt-1 text-[9px] uppercase tracking-[.12em] text-[#817664]">
+                      {isArabic
+                        ? paymentAr[sale.paymentMethod].label
+                        : paymentLabels[sale.paymentMethod]}
+                    </p>
+                  </div>
+                </button>
+              ))
+            ) : (
+              <p className="py-10 text-sm text-[#817664]">
+                {t(
+                  emptyOrdersCopy,
+                  "ستُسجل المبيعات المكتملة هنا بعد أول عملية بيع."
+                )}
+              </p>
+            )}
+          </div>
+        </section>
+        <section className="rounded-2xl border border-[#cdbb9c] bg-[#2f3e34] p-5 text-[#f2ead8]">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="mono text-[9px] uppercase tracking-[.18em] text-[#bfc8b9]">
+                {t("Weekly rhythm", "الإيقاع الأ��بوعي")}
+              </p>
+              <h2 className="serif mt-1 text-2xl font-semibold">
+                {t("The week in motion", "الأسبوع في حركة")}
+              </h2>
+            </div>
+            <BarChart3 className="h-5 w-5 text-[#d9c7a3]" />
+          </div>
+          <div className="mt-8 flex h-52 items-end gap-2 sm:gap-4">
+            {bars.map((value, index) => (
+              <div
+                key={index}
+                className="flex flex-1 flex-col items-center gap-2"
+              >
+                <div
+                  className="w-full rounded-t-lg bg-[#d9c7a3]"
+                  style={{ height: `${Math.round((value / highest) * 100)}%` }}
+                />
+                <span className="mono text-[9px] text-[#bfc8b9]">
+                  {["M", "T", "W", "T", "F", "S", "S"][index]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
-      <div className="mt-4 flex justify-end"><button onClick={save} className="rounded-xl bg-[#5c4033] px-4 py-2.5 text-sm font-bold text-[#f2ead8] hover:bg-[#704c3c]">{editingId === null ? t("Save product family", "حفظ عائلة المنتج") : t("Save changes", "حفظ التغييرات")}</button></div>
-    </div>}
-    <section className="overflow-hidden rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3]">
-      <div className="flex flex-wrap items-center gap-3 border-b border-[#d9c7a3] px-5 py-4"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">{sorted.length} {t("products", "منتج")}</p><h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">{t("The shelf", "الرف")}</h2></div>
-        <div className="ms-auto flex flex-wrap items-center gap-2"><select value={filterCategory} onChange={(event) => { setFilterCategory(event.target.value); setPage(1); }} className="h-10 rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]" aria-label={t("Filter by category", "تصفية حسب الفئة")}>{catalogCategoryOptions.map((item) => <option key={item} value={item}>{item === "All" ? t("All", "الكل") : categoryLabel(item)}</option>)}</select><div className="relative w-full sm:w-64"><Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#817664]" /><input value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setPage(1); }} className="h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] ps-9 pe-3 text-sm outline-none ring-[#5c4033] focus:ring-2" placeholder={t("Search name, SKU, color…", "ابحث بالاسم أو الكود أو اللون…")} /></div></div></div>
-      {selected.length > 0 && <div className="flex items-center justify-between gap-3 border-b border-[#d9c7a3] bg-[#eadfc9] px-5 py-3 text-sm"><span className="font-bold text-[#5c4033]">{selected.length} {t("selected", "محدد")}</span><div className="flex items-center gap-2"><button onClick={() => setDeleting({ product: null, bulk: true })} className="rounded-lg bg-[#f2d6ce] px-3 py-2 text-xs font-bold text-[#9a5537] hover:bg-[#ecc6bc]" aria-label={t("Delete selected", "حذف المحدد")}><Trash2 className="h-3.5 w-3.5" /></button></div></div>}
-      <div className="overflow-x-auto"><table className="w-full min-w-[820px] text-center"><thead className="bg-[#eadfc9]"><tr><th className="w-12 px-2 py-4"><input type="checkbox" checked={paged.length > 0 && selected.length === paged.length} onChange={toggleAll} aria-label={t("Select all", "تحديد الكل")} /></th>{documentColumns.map(([key, en, ar]) => <th key={key}><button onClick={() => toggleSort(key)} className="inline-flex items-center gap-1.5 px-4 py-4 mono text-[9px] uppercase tracking-[.15em] text-[#817664] hover:text-[#5c4033]">{isArabic ? ar : en}{sortGlyph(key)}</button></th>)}<th className="px-4 py-4 mono text-[9px] uppercase tracking-[.15em] text-[#817664]">{t("Actions", "إجراءات")}</th></tr></thead><tbody className="divide-y divide-[#d9c7a3]">{paged.map((product) => <tr key={product.id} className="transition hover:bg-[#f2ead8]"><td className="px-2 py-4"><input type="checkbox" checked={selected.includes(product.id)} onChange={() => toggleSelected(product.id)} aria-label={t(`Select ${product.name}`, `تحديد ${product.arabicName || product.name}`)} /></td><td className="px-4 py-4"><div className="flex items-center justify-center gap-3"><ProductArt product={product} compact /><div className="text-start"><p className="text-sm font-extrabold text-[#2f3e34]">{product.arabicName || product.name}</p><p className="mt-1 text-xs text-[#817664]">{product.category}{product.categoryAr ? ` · ${product.categoryAr}` : ""}</p></div></div></td><td className="px-4 py-4"><span className="mono text-xs font-bold text-[#5c4033]">{product.baseSku}</span></td><td className="px-4 py-4"><span className="inline-flex items-center justify-center gap-2 text-sm text-[#71675b]"><span className="h-3 w-3 rounded-full" style={{ background: colorSwatch(product.color) }} />{product.color} <span className="mono text-[10px]">{product.colorCode}</span>{product.colorArabic ? <span className="text-xs text-[#817664]"> · {product.colorArabic}</span> : ""}</span></td><td className="px-4 py-4 serif text-lg font-semibold text-[#5c4033]">{money(product.price)}</td><td className="px-4 py-4 mono text-sm text-[#2f3e34]">{product.stock}</td><td className="px-4 py-4"><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.1em] ${stockTone(product.stock) === "danger" ? "bg-[#f2d6ce] text-[#9a5537]" : stockTone(product.stock) === "warn" ? "bg-[#f3e1c4] text-[#a66b43]" : "bg-[#d8e2d5] text-[#4f6c49]"}`}>{isArabic ? stockAr[stockLabel(product.stock)] : stockLabel(product.stock)}</span></td><td className="px-4 py-4"><div className="flex items-center justify-center gap-1"><button onClick={() => setViewing(product)} className="rounded-lg p-2 text-[#5c4033] hover:bg-[#eadfc9]" aria-label={t(`View ${product.name}`, `عرض ${product.name}`)}><Eye className="h-4 w-4" /></button><button onClick={() => openEdit(product)} className="rounded-lg p-2 text-[#5c4033] hover:bg-[#eadfc9]" aria-label={t(`Edit ${product.name}`, `تعديل ${product.name}`)}><Pencil className="h-4 w-4" /></button><button onClick={() => setDeleting({ product, bulk: false })} className="rounded-lg p-2 text-[#9a5537] hover:bg-[#f2d6ce]" aria-label={t(`Delete ${product.name}`, `حذف ${product.name}`)}><Trash2 className="h-4 w-4" /></button></div></td></tr>)}</tbody></table></div>
-      {!paged.length && <p className="p-8 text-center text-sm text-[#817664]">{searchQuery || filterCategory !== "All" ? t("No matching pieces. Try a different search.", "لا توجد قطع مطابقة. جرّب بحثاً مختلفاً.") : t(emptyCatalogCopy, "ستظهر هنا عائلات المنتجات ونسخها الفيزيائية.")}</p>}
-      {pageCount > 1 && <div className="flex items-center justify-between gap-3 border-t border-[#d9c7a3] px-5 py-4 text-sm"><span className="text-xs text-[#817664]">{t("Page", "صفحة")} {safePage} {t("of", "من")} {pageCount}</span><div className="flex items-center gap-1"><button onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))} disabled={safePage === 1} className="rounded-lg border border-[#cdbb9c] bg-[#eadfc9] p-2 text-[#2f3e34] hover:bg-[#dfd0b5] disabled:opacity-40" aria-label={t("Previous page", "الصفحة السابقة")}>{isArabic ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}</button><div className="flex flex-wrap items-center gap-1">{Array.from({ length: pageCount }, (_, index) => <button key={index} onClick={() => setPage(index + 1)} className={`h-8 w-8 rounded-lg text-xs font-bold transition ${safePage === index + 1 ? "bg-[#2f3e34] text-[#f2ead8]" : "bg-[#eadfc9] text-[#71675b] hover:bg-[#dfd0b5]"}`}>{index + 1}</button>)}</div><button onClick={() => setPage((currentPage) => Math.min(pageCount, currentPage + 1))} disabled={safePage === pageCount} className="rounded-lg border border-[#cdbb9c] bg-[#eadfc9] p-2 text-[#2f3e34] hover:bg-[#dfd0b5] disabled:opacity-40" aria-label={t("Next page", "الصفحة التالية")}>{isArabic ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</button></div></div>}
-    </section>
-    {viewing && <Dialog open={Boolean(viewing)} onOpenChange={(open) => !open && setViewing(null)}><DialogContent className="border-[#cdbb9c] bg-[#f7f0e3] text-[#2f3e34] sm:max-w-md"><DialogHeader><DialogTitle className="serif text-2xl">{viewing.arabicName || viewing.name}</DialogTitle><DialogDescription className="text-[#817664]">{viewing.name}{viewing.arabicName ? ` · ${viewing.arabicName}` : ""}</DialogDescription></DialogHeader><div className="flex flex-col gap-4"><ProductArt product={viewing} /><div className="grid grid-cols-2 gap-3 text-sm"><div className="rounded-xl bg-[#eadfc9] p-3"><p className="mono text-[9px] uppercase tracking-[.14em] text-[#817664]">{t("Category", "الفئة")}</p><p className="mt-1 font-bold text-[#5c4033]">{viewing.category}{viewing.categoryAr ? ` · ${viewing.categoryAr}` : ""}</p></div><div className="rounded-xl bg-[#eadfc9] p-3"><p className="mono text-[9px] uppercase tracking-[.14em] text-[#817664]">{t("Color", "اللون")}</p><p className="mt-1 font-bold text-[#5c4033]">{viewing.color}{viewing.colorArabic ? ` · ${viewing.colorArabic}` : ""}</p></div><div className="rounded-xl bg-[#eadfc9] p-3"><p className="mono text-[9px] uppercase tracking-[.14em] text-[#817664]">{t("Family SKU", "كود العائلة")}</p><p className="mono mt-1 font-bold text-[#5c4033]">{viewing.baseSku}</p></div><div className="rounded-xl bg-[#eadfc9] p-3"><p className="mono text-[9px] uppercase tracking-[.14em] text-[#817664]">{t("Color code", "كود اللون")}</p><p className="mono mt-1 font-bold text-[#5c4033]">{viewing.colorCode}</p></div><div className="rounded-xl bg-[#eadfc9] p-3"><p className="mono text-[9px] uppercase tracking-[.14em] text-[#817664]">{t("Unit price", "سعر الوحدة")}</p><p className="serif mt-1 font-bold text-[#5c4033]">{money(viewing.price)}</p></div><div className="rounded-xl bg-[#eadfc9] p-3"><p className="mono text-[9px] uppercase tracking-[.14em] text-[#817664]">{t("Stock", "المخزون")}</p><p className="mt-1 font-bold text-[#5c4033]">{viewing.stock} {t("copies", "نسخة")}</p></div></div></div><DialogFooter><button onClick={() => openEdit(viewing)} className="flex items-center gap-2 rounded-xl bg-[#2f3e34] px-4 py-3 text-sm font-bold text-[#f2ead8] hover:bg-[#415045]"><Pencil className="h-4 w-4" /> {t("Edit", "تعديل")}</button><button onClick={() => setDeleting({ product: viewing, bulk: false })} className="flex items-center gap-2 rounded-xl bg-[#f2d6ce] px-4 py-3 text-sm font-bold text-[#9a5537] hover:bg-[#ecc6bc]"><Trash2 className="h-4 w-4" /> {t("Delete", "حذف")}</button></DialogFooter></DialogContent></Dialog>}
-    {deleting && <Dialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}><DialogContent className="border-[#cdbb9c] bg-[#f7f0e3] text-[#2f3e34] sm:max-w-sm"><DialogHeader><DialogTitle className="serif text-2xl">{deleting.bulk ? t("Delete products", "حذف المنتجات") : t("Delete product", "حذف المنتج")}</DialogTitle><DialogDescription className="text-[#817664]">{deleting.bulk ? `${selected.length} ${t("products will be removed from the shelf. This cannot be undone.", "سيتم إزالة منتجات من الرف. لا يمكن التراجع عن هذا الإجراء.")}` : t("This will remove the copy from the shelf. This cannot be undone.", "سيؤدي هذا إلى إزالة النسخة من الرف. لا يمكن التراجع عن هذا الإجراء.")}</DialogDescription></DialogHeader><div className="flex justify-end gap-2"><button onClick={() => setDeleting(null)} className="rounded-xl border border-[#cdbb9c] bg-[#eadfc9] px-4 py-3 text-sm font-bold text-[#2f3e34] hover:bg-[#dfd0b5]">{t("Cancel", "إلغاء")}</button><button onClick={() => { if (deleting.bulk) { selected.forEach(onDeleteProduct); setSelected([]); } else if (deleting.product) { onDeleteProduct(deleting.product.id); setSelected((current) => current.filter((id) => id !== deleting.product!.id)); } setDeleting(null); }} className="flex items-center gap-2 rounded-xl bg-[#9a5537] px-4 py-3 text-sm font-bold text-[#f2ead8] hover:bg-[#704c3c]" disabled={!deleting}><Trash2 className="h-4 w-4" /> {t("Delete", "حذف")}</button></div></DialogContent></Dialog>}
-  </div>;
+      <Dialog
+        open={Boolean(selectedSale)}
+        onOpenChange={open => !open && setSelectedSale(null)}
+      >
+        <DialogContent className="border-[#cdbb9c] bg-[#f7f0e3] text-[#2f3e34] sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="serif text-2xl">
+              {t("Order details", "تفاصيل الطلب")}
+            </DialogTitle>
+            <DialogDescription className="text-[#817664]">
+              {selectedSale
+                ? `${selectedSale.receiptNumber} · ${dated(selectedSale.createdAt)}`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedSale && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between rounded-xl bg-[#eadfc9] p-3 text-sm">
+                <span className="text-[#817664]">{t("Payment", "الدفع")}</span>
+                <span className="font-bold text-[#5c4033]">
+                  {isArabic
+                    ? paymentAr[selectedSale.paymentMethod].label
+                    : paymentLabels[selectedSale.paymentMethod]}
+                </span>
+              </div>
+              <div className="flex flex-col gap-3">
+                {selectedSale.items.map((item, index) => (
+                  <div
+                    key={`${item.name}-${index}`}
+                    className="flex items-center justify-between gap-3 border-b border-[#d9c7a3] pb-3 text-sm"
+                  >
+                    <div>
+                      <p className="font-bold">
+                        {item.name}
+                        {item.arabicName ? (
+                          <span
+                            className="ml-2 text-xs font-normal text-[#817664]"
+                            dir="rtl"
+                          >
+                            {item.arabicName}
+                          </span>
+                        ) : (
+                          ""
+                        )}
+                      </p>
+                      <p className="text-xs text-[#817664]">
+                        {item.quantity} × {money(item.total / item.quantity)}
+                      </p>
+                    </div>
+                    <span className="font-bold">{money(item.total)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-col gap-2 border-t border-[#cdbb9c] pt-3 text-sm">
+                <div className="flex justify-between">
+                  <span>{t("Subtotal", "المجموع الفرعي")}</span>
+                  <span>
+                    {money(
+                      selectedSale.items.reduce(
+                        (sum, item) => sum + item.total,
+                        0
+                      )
+                    )}
+                  </span>
+                </div>
+                {(selectedSale.discount ?? 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span>{t("Discount", "الخصم")}</span>
+                    <span>-{money(selectedSale.discount ?? 0)}</span>
+                  </div>
+                )}
+                {(selectedSale.tax ?? 0) > 0 && (
+                  <div className="flex justify-between">
+                    <span>{t("Tax", "الضريبة")}</span>
+                    <span>{money(selectedSale.tax ?? 0)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-lg font-extrabold text-[#5c4033]">
+                  <span>{t("Total", "الإجمالي")}</span>
+                  <span>{money(selectedSale.total)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => selectedSale && printSale(selectedSale)}
+              className="flex items-center justify-center gap-2 rounded-xl bg-[#2f3e34] px-4 py-3 text-sm font-bold text-[#f2ead8] hover:bg-[#415045]"
+              disabled={!selectedSale}
+            >
+              {t("Print receipt", "طباعة الإيصال")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
 
-function Reports({ products, sales, isArabic }: { products: ProductRecord[]; sales: SaleRecord[]; isArabic: boolean }) {
+function Catalog({
+  products,
+  onAddProduct,
+  onUpdateProduct,
+  onDeleteProduct,
+  isArabic,
+}: {
+  products: ProductRecord[];
+  onAddProduct: (product: ProductRecord) => void;
+  onUpdateProduct: (product: ProductRecord) => void;
+  onDeleteProduct: (id: number) => void;
+  isArabic: boolean;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [viewing, setViewing] = useState<ProductRecord | null>(null);
+  const [deleting, setDeleting] = useState<{
+    product: ProductRecord | null;
+    bulk: boolean;
+  } | null>(null);
+  const [selected, setSelected] = useState<number[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState("All");
+  const [sortKey, setSortKey] = useState("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
+  const pageSize = 6;
+  const [name, setName] = useState("");
+  const [arabicName, setArabicName] = useState("");
+  const [colorRows, setColorRows] = useState<
+    Array<{ en: string; ar: string; copies: string }>
+  >([{ en: "Clay", ar: "طين", copies: "5" }]);
+  const [category, setCategory] = useState("Tableware");
+  const [categoryAr, setCategoryAr] = useState("أطباق");
+  const [customCategory, setCustomCategory] = useState("");
+  const [categoryOptions, setCategoryOptions] = useState<
+    Array<{ en: string; ar: string }>
+  >(
+    categories
+      .filter(item => item !== "All")
+      .map(item => ({ en: item, ar: categoriesAr[item] || "" }))
+  );
+  const [price, setPrice] = useState("1200");
   const t = makeT(isArabic);
-  const money = (value: number) => formatMoney(value, isArabic ? "ar-EG" : "en-EG");
-  const dashboard = makeDashboard(sales, products);
-  const lowStock = products.filter((product) => product.stock <= 3);
-  return <div className="display-in"><PageHeading eyebrow={t("GHEIR / Reports", "GHEIR / التقارير")} title={t("Store reports.", "تقارير المتجر.")} detail={t("Admin-only sales and stock visibility.", "رؤية المبيعات والمخزون للمدير فقط.")} /><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"><MetricCard label={t("Today's sales", "مبيعات اليوم")} value={money(dashboard.todaySales)} icon={CircleDollarSign} /><MetricCard label={t("Completed sales", "مبيعات مكتملة")} value={String(dashboard.completedSales)} icon={Receipt} /><MetricCard label={t("Average order", "متوسط الطلب")} value={money(dashboard.averageOrder)} icon={BarChart3} /><MetricCard label={t("Low stock", "مخزون منخفض")} value={String(dashboard.lowStockItems)} icon={Box} warn /></div><div className="mt-5 grid gap-5 lg:grid-cols-2"><section className="rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-5"><p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">{t("Sales report", "تقرير المبيعات")}</p><h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">{t("Recent transactions", "أحدث العمليات")}</h2><div className="mt-4 divide-y divide-[#d9c7a3]">{sales.map((sale) => <div key={sale.id} className="flex items-center justify-between gap-3 py-3"><div><p className="text-sm font-bold text-[#2f3e34]">{sale.receiptNumber}</p><p className="text-xs text-[#817664]">{formatDate(sale.createdAt, isArabic ? "ar" : "en")} · {t(paymentLabels[sale.paymentMethod], paymentAr[sale.paymentMethod].label)}</p></div><span className="serif text-lg font-semibold text-[#5c4033]">{money(sale.total)}</span></div>)}</div></section><section className="rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-5"><p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">{t("Stock report", "تقرير المخزون")}</p><h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">{t("Low-stock products", "منتجات المخزون المنخفض")}</h2><div className="mt-4 divide-y divide-[#d9c7a3]">{lowStock.length ? lowStock.map((product) => <div key={product.id} className="flex items-center justify-between py-3"><span className="text-sm font-bold text-[#2f3e34]">{product.arabicName || product.name}</span><span className="text-sm font-bold text-[#9a5537]">{product.stock} {t("left", "متبقٍ")}</span></div>) : <p className="py-4 text-sm text-[#817664]">{t("All products have healthy stock.", "جميع المنتجات بمخزون سليم.")}</p>}</div></section></div></div>;
+  const money = (value: number) =>
+    formatMoney(value, isArabic ? "ar-EG" : "en-EG");
+  const categoryLabel = (en: string) => {
+    const ar =
+      categoriesAr[en] ||
+      products.find(p => p.category === en)?.categoryAr ||
+      "";
+    return isArabic ? ar || en : ar ? `${en} · ${ar}` : en;
+  };
+  const catalogCategoryOptions = [
+    "All",
+    ...Array.from(new Set(products.map(p => p.category))),
+  ];
+  const searched = searchQuery.trim()
+    ? products.filter(product =>
+        productSearchText(product).includes(searchQuery.trim().toLowerCase())
+      )
+    : products;
+  const filtered =
+    filterCategory === "All"
+      ? searched
+      : searched.filter(product => product.category === filterCategory);
+  const sorted = [...filtered].sort((a, b) => {
+    const value =
+      sortKey === "name"
+        ? a.name.localeCompare(b.name)
+        : sortKey === "sku"
+          ? a.baseSku.localeCompare(b.baseSku)
+          : sortKey === "color"
+            ? a.color.localeCompare(b.color)
+            : sortKey === "price"
+              ? a.price - b.price
+              : sortKey === "stock"
+                ? a.stock - b.stock
+                : stockLabel(a.stock).localeCompare(stockLabel(b.stock));
+    return sortDir === "asc" ? value : -value;
+  });
+  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const paged = sorted.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const toggleSelected = (id: number) =>
+    setSelected(current =>
+      current.includes(id)
+        ? current.filter(item => item !== id)
+        : [...current, id]
+    );
+  const toggleAll = () =>
+    setSelected(
+      paged.length && selected.length === paged.length
+        ? []
+        : paged.map(p => p.id)
+    );
+  const toggleSort = (key: string) => {
+    if (sortKey === key) setSortDir(dir => (dir === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+  const sortGlyph = (key: string) =>
+    sortKey !== key ? (
+      <ArrowUp className="h-3 w-3 opacity-40" />
+    ) : sortDir === "asc" ? (
+      <ArrowUp className="h-3 w-3" />
+    ) : (
+      <ArrowDown className="h-3 w-3" />
+    );
+  const importProducts = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const imported = parseProductCsv(await file.text());
+    imported.forEach(onAddProduct);
+    event.target.value = "";
+  };
+  const updateColorRow = (
+    index: number,
+    key: "en" | "ar" | "copies",
+    value: string
+  ) =>
+    setColorRows(current =>
+      current.map((row, i) => (i === index ? { ...row, [key]: value } : row))
+    );
+  const addColorRow = () =>
+    setColorRows(current => [...current, { en: "", ar: "", copies: "" }]);
+  const removeColorRow = (index: number) =>
+    setColorRows(current =>
+      current.length > 1 ? current.filter((_, i) => i !== index) : current
+    );
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setName("");
+    setArabicName("");
+    setColorRows([{ en: "Clay", ar: "طين", copies: "5" }]);
+    setCustomCategory("");
+    setCategoryAr("أطباق");
+    setCategory("Tableware");
+    setPrice("1200");
+  };
+  const openForm = () => {
+    resetForm();
+    setShowForm(true);
+  };
+  const openEdit = (product: ProductRecord) => {
+    setShowForm(true);
+    setEditingId(product.id);
+    setName(product.name);
+    setArabicName(product.arabicName || "");
+    setColorRows([
+      {
+        en: product.color,
+        ar: product.colorArabic || "",
+        copies: String(product.stock),
+      },
+    ]);
+    setCategory(product.category);
+    setCategoryAr(product.categoryAr || categoriesAr[product.category] || "");
+    setCustomCategory("");
+    setPrice(String(product.price));
+  };
+  const save = () => {
+    const family = safeTrim(name);
+    const resolvedCategory = safeTrim(customCategory) || category;
+    const resolvedCategoryAr =
+      safeTrim(categoryAr) || categoriesAr[resolvedCategory] || null;
+    if (
+      customCategory.trim() &&
+      !categoryOptions.some(item => item.en === resolvedCategory)
+    )
+      setCategoryOptions(current => [
+        ...current,
+        { en: resolvedCategory, ar: resolvedCategoryAr || "" },
+      ]);
+    const validColors = colorRows.filter(
+      row => safeTrim(row.en) && asPositiveInt(row.copies, 0) >= 1
+    );
+    if (
+      !family ||
+      !validColors.length ||
+      new Set(validColors.map(row => row.en.toUpperCase())).size !==
+        validColors.length
+    )
+      return;
+    validColors.forEach((row, index) => {
+      const record: ProductRecord = {
+        id: editingId ?? Date.now() + index,
+        name: family,
+        englishName: family,
+        arabicName: safeTrim(arabicName) || null,
+        category: resolvedCategory,
+        categoryAr: resolvedCategoryAr,
+        baseSku: generateFamilyCode(family),
+        price: Number(price) || 0,
+        stock: asPositiveInt(row.copies, 0),
+        color: safeTrim(row.en),
+        colorArabic: safeTrim(row.ar) || null,
+        colorCode: generateColorCode(safeTrim(row.en)),
+        barcode: createGeneratedProductSku(
+          family,
+          safeTrim(row.en),
+          1
+        ).replaceAll("-", ""),
+        shape: "round",
+      };
+      if (editingId !== null && index === 0) onUpdateProduct(record);
+      else onAddProduct(record);
+    });
+    resetForm();
+  };
+  const documentColumns = [
+    ["name", "Product", "المنتج"],
+    ["sku", "Family SKU", "كود العائلة"],
+    ["color", "Color", "اللون"],
+    ["price", "Unit price", "سعر الوحدة"],
+    ["stock", "Stock", "المخزون"],
+    ["status", "Status", "الحالة"],
+  ] as const;
+  return (
+    <div className="display-in">
+      <PageHeading
+        eyebrow={t("GHEIR / Catalog", "GHEIR / المنتجات")}
+        title={t("Product shelf.", "رف المنتجات.")}
+        detail={t(
+          "Manage families, finishes, stock signals, and serialized copies.",
+          "إدارة العائلات واللمسات النهائية وإشارات المخزون والنسخ المسلسلة."
+        )}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              id="product-import"
+              type="file"
+              accept=".csv,text/csv"
+              onChange={importProducts}
+              className="sr-only"
+            />
+            <label
+              htmlFor="product-import"
+              className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#cdbb9c] bg-[#eadfc9] px-3 py-3 text-xs font-bold text-[#2f3e34] hover:bg-[#dfd0b5]"
+            >
+              <Upload className="h-4 w-4" /> {t("Import", "استيراد")}
+            </label>
+            <button
+              onClick={() =>
+                downloadCsv(
+                  toCsvFilename("gheir-products"),
+                  productCsv(products)
+                )
+              }
+              className="flex items-center gap-2 rounded-xl border border-[#cdbb9c] bg-[#eadfc9] px-3 py-3 text-xs font-bold text-[#2f3e34] hover:bg-[#dfd0b5]"
+            >
+              <Download className="h-4 w-4" /> {t("Export", "تصدير")}
+            </button>
+            <button
+              onClick={() =>
+                downloadCsv("gheir-product-template.csv", productCsvTemplate())
+              }
+              className="flex items-center gap-2 rounded-xl border border-[#cdbb9c] bg-[#eadfc9] px-3 py-3 text-xs font-bold text-[#2f3e34] hover:bg-[#dfd0b5]"
+            >
+              <Download className="h-4 w-4" /> {t("Template", "قالب")}
+            </button>
+            <button
+              onClick={openForm}
+              className="flex items-center gap-2 rounded-xl bg-[#2f3e34] px-4 py-3 text-sm font-bold text-[#f2ead8] hover:bg-[#415045]"
+            >
+              <Plus className="h-4 w-4" /> {t("Add product", "إضافة منتج")}
+            </button>
+          </div>
+        }
+      />
+      {showForm && (
+        <div className="mb-5 rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">
+                {editingId === null
+                  ? t("New family", "عائلة جديدة")
+                  : t("Edit product", "تعديل منتج")}
+              </p>
+              <h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">
+                {editingId === null
+                  ? t("Add a product line", "أضف خط إنتاج")
+                  : t("Update the product line", "حدّث خط الإنتاج")}
+              </h2>
+            </div>
+            <button
+              onClick={resetForm}
+              className="rounded-lg p-2 text-[#817664] hover:bg-[#eadfc9]"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-4">
+            <label className="text-xs font-bold text-[#5c4033] md:col-span-2">
+              {t(
+                "Product family / name (English)",
+                "عائلة المنتج / الاسم (إنجليزي)"
+              )}
+              <input
+                value={name}
+                onChange={event => setName(event.target.value)}
+                className="mt-1 h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]"
+                placeholder={t("e.g. Stoneware cup", "مثال: كوب من الحجر")}
+              />
+            </label>
+            <label className="text-xs font-bold text-[#5c4033] md:col-span-2">
+              {t("Product name (Arabic)", "اسم المنتج (عربي)")}
+              <input
+                dir="rtl"
+                value={arabicName}
+                onChange={event => setArabicName(event.target.value)}
+                className="mt-1 h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]"
+                placeholder={t("e.g. Stoneware cup", "مثال: كوب فخاري")}
+              />
+            </label>
+            <label className="text-xs font-bold text-[#5c4033] md:col-span-2">
+              {t("Colors", "الألوان")}{" "}
+              <span className="font-normal text-[#817664]">
+                ({t("English + Arabic + copies", "إنجليزي + عربي + نسخ")})
+              </span>
+            </label>
+            <div className="md:col-span-2 space-y-2">
+              {colorRows.map((row, colorIndex) => (
+                <div key={colorIndex} className="flex items-center gap-2">
+                  <input
+                    value={row.en}
+                    onChange={event =>
+                      updateColorRow(colorIndex, "en", event.target.value)
+                    }
+                    className="h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]"
+                    placeholder={t("Color (English)", "اللون (إنجليزي)")}
+                  />
+                  <input
+                    dir="rtl"
+                    value={row.ar}
+                    onChange={event =>
+                      updateColorRow(colorIndex, "ar", event.target.value)
+                    }
+                    className="h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]"
+                    placeholder={t("Color (Arabic)", "اللون (عربي)")}
+                  />
+                  <span className="mono w-14 shrink-0 text-center text-[10px] uppercase text-[#817664]">
+                    {generateColorCode(safeTrim(row.en))}
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    value={row.copies}
+                    onChange={event =>
+                      updateColorRow(colorIndex, "copies", event.target.value)
+                    }
+                    className="h-10 w-20 shrink-0 rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-center text-sm outline-none focus:ring-2 focus:ring-[#5c4033]"
+                    placeholder="0"
+                    aria-label={t("Opening copies for color", "عدد نسخ اللون")}
+                  />
+                  {colorRows.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeColorRow(colorIndex)}
+                      className="rounded-lg p-2 text-[#817664] hover:bg-[#eadfc9]"
+                      aria-label={t("Remove color", "حذف اللون")}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addColorRow}
+                className="flex items-center gap-1.5 rounded-xl border border-[#cdbb9c] bg-[#eadfc9] px-3 py-2 text-xs font-bold text-[#2f3e34] hover:bg-[#dfd0b5]"
+              >
+                <Plus className="h-3.5 w-3.5" /> {t("Add color", "إضافة لون")}
+              </button>
+            </div>
+            <label className="text-xs font-bold text-[#5c4033]">
+              {t("Category", "الفئة")}
+              <input
+                value={customCategory}
+                onChange={event => setCustomCategory(event.target.value)}
+                className="mt-1 h-9 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-xs outline-none focus:ring-2 focus:ring-[#5c4033]"
+                placeholder={t("Or add a new category", "أو أضف فئة جديدة")}
+              />
+              <select
+                value={category}
+                onChange={event => {
+                  const next = event.target.value;
+                  setCategory(next);
+                  const option = categoryOptions.find(item => item.en === next);
+                  if (option?.ar) setCategoryAr(option.ar);
+                }}
+                className="mt-1 h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]"
+              >
+                {categoryOptions.map(item => (
+                  <option key={item.en} value={item.en}>
+                    {item.en}
+                    {item.ar ? ` · ${item.ar}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs font-bold text-[#5c4033]">
+              {t("Category (Arabic)", "الفئة (عربي)")}
+              <input
+                dir="rtl"
+                value={categoryAr}
+                onChange={event => setCategoryAr(event.target.value)}
+                className="mt-1 h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]"
+                placeholder={t("e.g. أطباق", "مثال: أطباق")}
+              />
+            </label>
+            <label className="text-xs font-bold text-[#5c4033]">
+              {t("Unit price", "سعر الوحدة")}
+              <input
+                type="number"
+                value={price}
+                onChange={event => setPrice(event.target.value)}
+                className="mt-1 h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]"
+              />
+            </label>
+            <label className="text-xs font-bold text-[#5c4033]">
+              {t("Copies per color", "النسخ لكل لون")}{" "}
+              <span className="font-normal text-[#817664]">
+                (
+                {t(
+                  "counted for each color, not the family",
+                  "تُحسب لكل لون وليس للعائلة"
+                )}
+                )
+              </span>
+            </label>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={save}
+              className="rounded-xl bg-[#5c4033] px-4 py-2.5 text-sm font-bold text-[#f2ead8] hover:bg-[#704c3c]"
+            >
+              {editingId === null
+                ? t("Save product family", "حفظ عائلة المنتج")
+                : t("Save changes", "حفظ التغييرات")}
+            </button>
+          </div>
+        </div>
+      )}
+      <section className="overflow-hidden rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3]">
+        <div className="flex flex-wrap items-center gap-3 border-b border-[#d9c7a3] px-5 py-4">
+          <div>
+            <p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">
+              {sorted.length} {t("products", "منتج")}
+            </p>
+            <h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">
+              {t("The shelf", "الرف")}
+            </h2>
+          </div>
+          <div className="ms-auto flex flex-wrap items-center gap-2">
+            <select
+              value={filterCategory}
+              onChange={event => {
+                setFilterCategory(event.target.value);
+                setPage(1);
+              }}
+              className="h-10 rounded-xl border border-[#cdbb9c] bg-[#f2ead8] px-3 text-sm outline-none focus:ring-2 focus:ring-[#5c4033]"
+              aria-label={t("Filter by category", "تصفية حسب الفئة")}
+            >
+              {catalogCategoryOptions.map(item => (
+                <option key={item} value={item}>
+                  {item === "All" ? t("All", "الكل") : categoryLabel(item)}
+                </option>
+              ))}
+            </select>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#817664]" />
+              <input
+                value={searchQuery}
+                onChange={event => {
+                  setSearchQuery(event.target.value);
+                  setPage(1);
+                }}
+                className="h-10 w-full rounded-xl border border-[#cdbb9c] bg-[#f2ead8] ps-9 pe-3 text-sm outline-none ring-[#5c4033] focus:ring-2"
+                placeholder={t(
+                  "Search name, SKU, color…",
+                  "ابحث بالاسم أو الكود أو اللون…"
+                )}
+              />
+            </div>
+          </div>
+        </div>
+        {selected.length > 0 && (
+          <div className="flex items-center justify-between gap-3 border-b border-[#d9c7a3] bg-[#eadfc9] px-5 py-3 text-sm">
+            <span className="font-bold text-[#5c4033]">
+              {selected.length} {t("selected", "محدد")}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setDeleting({ product: null, bulk: true })}
+                className="rounded-lg bg-[#f2d6ce] px-3 py-2 text-xs font-bold text-[#9a5537] hover:bg-[#ecc6bc]"
+                aria-label={t("Delete selected", "حذف المحدد")}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] text-center">
+            <thead className="bg-[#eadfc9]">
+              <tr>
+                <th className="w-12 px-2 py-4">
+                  <input
+                    type="checkbox"
+                    checked={
+                      paged.length > 0 && selected.length === paged.length
+                    }
+                    onChange={toggleAll}
+                    aria-label={t("Select all", "تحديد الكل")}
+                  />
+                </th>
+                {documentColumns.map(([key, en, ar]) => (
+                  <th key={key}>
+                    <button
+                      onClick={() => toggleSort(key)}
+                      className="inline-flex items-center gap-1.5 px-4 py-4 mono text-[9px] uppercase tracking-[.15em] text-[#817664] hover:text-[#5c4033]"
+                    >
+                      {isArabic ? ar : en}
+                      {sortGlyph(key)}
+                    </button>
+                  </th>
+                ))}
+                <th className="px-4 py-4 mono text-[9px] uppercase tracking-[.15em] text-[#817664]">
+                  {t("Actions", "إجراءات")}
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#d9c7a3]">
+              {paged.map(product => (
+                <tr key={product.id} className="transition hover:bg-[#f2ead8]">
+                  <td className="px-2 py-4">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(product.id)}
+                      onChange={() => toggleSelected(product.id)}
+                      aria-label={t(
+                        `Select ${product.name}`,
+                        `تحديد ${product.arabicName || product.name}`
+                      )}
+                    />
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex items-center justify-center gap-3">
+                      <ProductArt product={product} compact />
+                      <div className="text-start">
+                        <p className="text-sm font-extrabold text-[#2f3e34]">
+                          {product.arabicName || product.name}
+                        </p>
+                        <p className="mt-1 text-xs text-[#817664]">
+                          {product.category}
+                          {product.categoryAr ? ` · ${product.categoryAr}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className="mono text-xs font-bold text-[#5c4033]">
+                      {product.baseSku}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className="inline-flex items-center justify-center gap-2 text-sm text-[#71675b]">
+                      <span
+                        className="h-3 w-3 rounded-full"
+                        style={{ background: colorSwatch(product.color) }}
+                      />
+                      {product.color}{" "}
+                      <span className="mono text-[10px]">
+                        {product.colorCode}
+                      </span>
+                      {product.colorArabic ? (
+                        <span className="text-xs text-[#817664]">
+                          {" "}
+                          · {product.colorArabic}
+                        </span>
+                      ) : (
+                        ""
+                      )}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 serif text-lg font-semibold text-[#5c4033]">
+                    {money(product.price)}
+                  </td>
+                  <td className="px-4 py-4 mono text-sm text-[#2f3e34]">
+                    {product.stock}
+                  </td>
+                  <td className="px-4 py-4">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.1em] ${stockTone(product.stock) === "danger" ? "bg-[#f2d6ce] text-[#9a5537]" : stockTone(product.stock) === "warn" ? "bg-[#f3e1c4] text-[#a66b43]" : "bg-[#d8e2d5] text-[#4f6c49]"}`}
+                    >
+                      {isArabic
+                        ? stockAr[stockLabel(product.stock)]
+                        : stockLabel(product.stock)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => setViewing(product)}
+                        className="rounded-lg p-2 text-[#5c4033] hover:bg-[#eadfc9]"
+                        aria-label={t(
+                          `View ${product.name}`,
+                          `عرض ${product.name}`
+                        )}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => openEdit(product)}
+                        className="rounded-lg p-2 text-[#5c4033] hover:bg-[#eadfc9]"
+                        aria-label={t(
+                          `Edit ${product.name}`,
+                          `تعديل ${product.name}`
+                        )}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeleting({ product, bulk: false })}
+                        className="rounded-lg p-2 text-[#9a5537] hover:bg-[#f2d6ce]"
+                        aria-label={t(
+                          `Delete ${product.name}`,
+                          `حذف ${product.name}`
+                        )}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!paged.length && (
+          <p className="p-8 text-center text-sm text-[#817664]">
+            {searchQuery || filterCategory !== "All"
+              ? t(
+                  "No matching pieces. Try a different search.",
+                  "لا توجد قطع مطابقة. جرّب بحثاً مختلفاً."
+                )
+              : t(
+                  emptyCatalogCopy,
+                  "ستظهر هنا عائلات المنتجات ونسخها الفيزيائية."
+                )}
+          </p>
+        )}
+        {pageCount > 1 && (
+          <div className="flex items-center justify-between gap-3 border-t border-[#d9c7a3] px-5 py-4 text-sm">
+            <span className="text-xs text-[#817664]">
+              {t("Page", "صفحة")} {safePage} {t("of", "من")} {pageCount}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() =>
+                  setPage(currentPage => Math.max(1, currentPage - 1))
+                }
+                disabled={safePage === 1}
+                className="rounded-lg border border-[#cdbb9c] bg-[#eadfc9] p-2 text-[#2f3e34] hover:bg-[#dfd0b5] disabled:opacity-40"
+                aria-label={t("Previous page", "الصفحة السابقة")}
+              >
+                {isArabic ? (
+                  <ChevronRight className="h-4 w-4" />
+                ) : (
+                  <ChevronLeft className="h-4 w-4" />
+                )}
+              </button>
+              <div className="flex flex-wrap items-center gap-1">
+                {Array.from({ length: pageCount }, (_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setPage(index + 1)}
+                    className={`h-8 w-8 rounded-lg text-xs font-bold transition ${safePage === index + 1 ? "bg-[#2f3e34] text-[#f2ead8]" : "bg-[#eadfc9] text-[#71675b] hover:bg-[#dfd0b5]"}`}
+                  >
+                    {index + 1}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() =>
+                  setPage(currentPage => Math.min(pageCount, currentPage + 1))
+                }
+                disabled={safePage === pageCount}
+                className="rounded-lg border border-[#cdbb9c] bg-[#eadfc9] p-2 text-[#2f3e34] hover:bg-[#dfd0b5] disabled:opacity-40"
+                aria-label={t("Next page", "الصفحة التالية")}
+              >
+                {isArabic ? (
+                  <ChevronLeft className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+      {viewing && (
+        <Dialog
+          open={Boolean(viewing)}
+          onOpenChange={open => !open && setViewing(null)}
+        >
+          <DialogContent className="border-[#cdbb9c] bg-[#f7f0e3] text-[#2f3e34] sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="serif text-2xl">
+                {viewing.arabicName || viewing.name}
+              </DialogTitle>
+              <DialogDescription className="text-[#817664]">
+                {viewing.name}
+                {viewing.arabicName ? ` · ${viewing.arabicName}` : ""}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-4">
+              <ProductArt product={viewing} />
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="rounded-xl bg-[#eadfc9] p-3">
+                  <p className="mono text-[9px] uppercase tracking-[.14em] text-[#817664]">
+                    {t("Category", "الفئة")}
+                  </p>
+                  <p className="mt-1 font-bold text-[#5c4033]">
+                    {viewing.category}
+                    {viewing.categoryAr ? ` · ${viewing.categoryAr}` : ""}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-[#eadfc9] p-3">
+                  <p className="mono text-[9px] uppercase tracking-[.14em] text-[#817664]">
+                    {t("Color", "اللون")}
+                  </p>
+                  <p className="mt-1 font-bold text-[#5c4033]">
+                    {viewing.color}
+                    {viewing.colorArabic ? ` · ${viewing.colorArabic}` : ""}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-[#eadfc9] p-3">
+                  <p className="mono text-[9px] uppercase tracking-[.14em] text-[#817664]">
+                    {t("Family SKU", "كود العائلة")}
+                  </p>
+                  <p className="mono mt-1 font-bold text-[#5c4033]">
+                    {viewing.baseSku}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-[#eadfc9] p-3">
+                  <p className="mono text-[9px] uppercase tracking-[.14em] text-[#817664]">
+                    {t("Color code", "كود اللون")}
+                  </p>
+                  <p className="mono mt-1 font-bold text-[#5c4033]">
+                    {viewing.colorCode}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-[#eadfc9] p-3">
+                  <p className="mono text-[9px] uppercase tracking-[.14em] text-[#817664]">
+                    {t("Unit price", "سعر الوحدة")}
+                  </p>
+                  <p className="serif mt-1 font-bold text-[#5c4033]">
+                    {money(viewing.price)}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-[#eadfc9] p-3">
+                  <p className="mono text-[9px] uppercase tracking-[.14em] text-[#817664]">
+                    {t("Stock", "المخزون")}
+                  </p>
+                  <p className="mt-1 font-bold text-[#5c4033]">
+                    {viewing.stock} {t("copies", "نسخة")}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <button
+                onClick={() => openEdit(viewing)}
+                className="flex items-center gap-2 rounded-xl bg-[#2f3e34] px-4 py-3 text-sm font-bold text-[#f2ead8] hover:bg-[#415045]"
+              >
+                <Pencil className="h-4 w-4" /> {t("Edit", "تعديل")}
+              </button>
+              <button
+                onClick={() => setDeleting({ product: viewing, bulk: false })}
+                className="flex items-center gap-2 rounded-xl bg-[#f2d6ce] px-4 py-3 text-sm font-bold text-[#9a5537] hover:bg-[#ecc6bc]"
+              >
+                <Trash2 className="h-4 w-4" /> {t("Delete", "حذف")}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+      {deleting && (
+        <Dialog
+          open={Boolean(deleting)}
+          onOpenChange={open => !open && setDeleting(null)}
+        >
+          <DialogContent className="border-[#cdbb9c] bg-[#f7f0e3] text-[#2f3e34] sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="serif text-2xl">
+                {deleting.bulk
+                  ? t("Delete products", "حذف المنتجات")
+                  : t("Delete product", "حذف المنتج")}
+              </DialogTitle>
+              <DialogDescription className="text-[#817664]">
+                {deleting.bulk
+                  ? `${selected.length} ${t("products will be removed from the shelf. This cannot be undone.", "سيتم إزالة منتجات من الرف. لا يمكن التراجع عن هذا الإجراء.")}`
+                  : t(
+                      "This will remove the copy from the shelf. This cannot be undone.",
+                      "سيؤدي هذا إلى إزالة النسخة من الرف. لا يمكن التراجع عن هذا الإجراء."
+                    )}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setDeleting(null)}
+                className="rounded-xl border border-[#cdbb9c] bg-[#eadfc9] px-4 py-3 text-sm font-bold text-[#2f3e34] hover:bg-[#dfd0b5]"
+              >
+                {t("Cancel", "إلغاء")}
+              </button>
+              <button
+                onClick={() => {
+                  if (deleting.bulk) {
+                    selected.forEach(onDeleteProduct);
+                    setSelected([]);
+                  } else if (deleting.product) {
+                    onDeleteProduct(deleting.product.id);
+                    setSelected(current =>
+                      current.filter(id => id !== deleting.product!.id)
+                    );
+                  }
+                  setDeleting(null);
+                }}
+                className="flex items-center gap-2 rounded-xl bg-[#9a5537] px-4 py-3 text-sm font-bold text-[#f2ead8] hover:bg-[#704c3c]"
+                disabled={!deleting}
+              >
+                <Trash2 className="h-4 w-4" /> {t("Delete", "حذف")}
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
 }
 
-function SkuLab({ products, isArabic }: { products: ProductRecord[]; isArabic: boolean }) {
+function Reports({
+  products,
+  sales,
+  isArabic,
+}: {
+  products: ProductRecord[];
+  sales: SaleRecord[];
+  isArabic: boolean;
+}) {
+  const t = makeT(isArabic);
+  const money = (value: number) =>
+    formatMoney(value, isArabic ? "ar-EG" : "en-EG");
+  const dashboard = makeDashboard(sales, products);
+  const lowStock = products.filter(product => product.stock <= 3);
+  return (
+    <div className="display-in">
+      <PageHeading
+        eyebrow={t("GHEIR / Reports", "GHEIR / التقارير")}
+        title={t("Store reports.", "تقارير المتجر.")}
+        detail={t(
+          "Admin-only sales and stock visibility.",
+          "رؤية المبيعات والمخزون للمدير فقط."
+        )}
+      />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <MetricCard
+          label={t("Today's sales", "مبيعات اليوم")}
+          value={money(dashboard.todaySales)}
+          icon={CircleDollarSign}
+        />
+        <MetricCard
+          label={t("Completed sales", "مبيعات مكتملة")}
+          value={String(dashboard.completedSales)}
+          icon={Receipt}
+        />
+        <MetricCard
+          label={t("Average order", "متوسط الطلب")}
+          value={money(dashboard.averageOrder)}
+          icon={BarChart3}
+        />
+        <MetricCard
+          label={t("Low stock", "مخزون منخفض")}
+          value={String(dashboard.lowStockItems)}
+          icon={Box}
+          warn
+        />
+      </div>
+      <div className="mt-5 grid gap-5 lg:grid-cols-2">
+        <section className="rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-5">
+          <p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">
+            {t("Sales report", "تقرير المبيعات")}
+          </p>
+          <h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">
+            {t("Recent transactions", "أحدث العمليات")}
+          </h2>
+          <div className="mt-4 divide-y divide-[#d9c7a3]">
+            {sales.map(sale => (
+              <div
+                key={sale.id}
+                className="flex items-center justify-between gap-3 py-3"
+              >
+                <div>
+                  <p className="text-sm font-bold text-[#2f3e34]">
+                    {sale.receiptNumber}
+                  </p>
+                  <p className="text-xs text-[#817664]">
+                    {formatDate(sale.createdAt, isArabic ? "ar" : "en")} ·{" "}
+                    {t(
+                      paymentLabels[sale.paymentMethod],
+                      paymentAr[sale.paymentMethod].label
+                    )}
+                  </p>
+                </div>
+                <span className="serif text-lg font-semibold text-[#5c4033]">
+                  {money(sale.total)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-5">
+          <p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">
+            {t("Stock report", "تقرير المخزون")}
+          </p>
+          <h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">
+            {t("Low-stock products", "منتجات المخزون المنخفض")}
+          </h2>
+          <div className="mt-4 divide-y divide-[#d9c7a3]">
+            {lowStock.length ? (
+              lowStock.map(product => (
+                <div
+                  key={product.id}
+                  className="flex items-center justify-between py-3"
+                >
+                  <span className="text-sm font-bold text-[#2f3e34]">
+                    {product.arabicName || product.name}
+                  </span>
+                  <span className="text-sm font-bold text-[#9a5537]">
+                    {product.stock} {t("left", "متبقٍ")}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="py-4 text-sm text-[#817664]">
+                {t(
+                  "All products have healthy stock.",
+                  "جميع المنتجات بمخزون سليم."
+                )}
+              </p>
+            )}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function SkuLab({
+  products,
+  isArabic,
+}: {
+  products: ProductRecord[];
+  isArabic: boolean;
+}) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [excludedSkus, setExcludedSkus] = useState<string[]>([]);
-  const selectedProducts = products.filter((product) => selectedIds.includes(product.id));
-  const rows = selectedProducts.flatMap((product) => Array.from({ length: product.stock }, (_, index) => ({
-    sku: `${product.baseSku}-${product.colorCode}-${String(index + 1).padStart(4, "0")}`,
-    name: product.name,
-    arabicName: product.arabicName ?? null,
-    color: product.color,
-    colorArabic: product.colorArabic ?? null,
-    price: product.price,
-  })));
-  const selectedRows = rows.filter((row) => !excludedSkus.includes(row.sku));
-  const product = selectedProducts[0]; const copies = "1"; const serial = "1"; const setCopies = (_value: string) => undefined; const setSerial = (_value: string) => undefined; const generate = () => undefined;
+  const selectedProducts = products.filter(product =>
+    selectedIds.includes(product.id)
+  );
+  const rows = selectedProducts.flatMap(product =>
+    Array.from({ length: product.stock }, (_, index) => ({
+      sku: `${product.baseSku}-${product.colorCode}-${String(index + 1).padStart(4, "0")}`,
+      name: product.name,
+      arabicName: product.arabicName ?? null,
+      color: product.color,
+      colorArabic: product.colorArabic ?? null,
+      price: product.price,
+    }))
+  );
+  const selectedRows = rows.filter(row => !excludedSkus.includes(row.sku));
+  const product = selectedProducts[0];
+  const copies = "1";
+  const serial = "1";
+  const setCopies = (_value: string) => undefined;
+  const setSerial = (_value: string) => undefined;
+  const generate = () => undefined;
   const t = makeT(isArabic);
-  const money = (value: number) => formatMoney(value, isArabic ? "ar-EG" : "en-EG");
-  const toggleProduct = (id: number) => setSelectedIds((current) => current.includes(id) ? current.filter((selectedId) => selectedId !== id) : [...current, id]);
-  const toggleSku = (sku: string) => setExcludedSkus((current) => current.includes(sku) ? current.filter((value) => value !== sku) : [...current, sku]);
-  const exportRows = () => { if (selectedRows.length) downloadCsv(toCsvFilename("gheir-existing-skus"), skuLabelCsv(selectedRows)); };
+  const money = (value: number) =>
+    formatMoney(value, isArabic ? "ar-EG" : "en-EG");
+  const toggleProduct = (id: number) =>
+    setSelectedIds(current =>
+      current.includes(id)
+        ? current.filter(selectedId => selectedId !== id)
+        : [...current, id]
+    );
+  const toggleSku = (sku: string) =>
+    setExcludedSkus(current =>
+      current.includes(sku)
+        ? current.filter(value => value !== sku)
+        : [...current, sku]
+    );
+  const exportRows = () => {
+    if (selectedRows.length)
+      downloadCsv(
+        toCsvFilename("gheir-existing-skus"),
+        skuLabelCsv(selectedRows)
+      );
+  };
   const exportPdf = () => {
     if (!selectedRows.length) return;
-    const escapeHtml = (value: string | number) => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
-    const tableRows = selectedRows.map((row, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(row.name)}${row.arabicName ? `${escapeHtml(row.arabicName)}<br/>` : ""}</td><td>${escapeHtml(row.color)}${row.colorArabic ? ` · ${escapeHtml(row.colorArabic)}` : ""}</td><td><strong>${escapeHtml(row.sku)}</strong></td><td>${escapeHtml(money(row.price))}</td></tr>`).join("");
+    const escapeHtml = (value: string | number) =>
+      String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;");
+    const tableRows = selectedRows
+      .map(
+        (row, index) =>
+          `<tr><td>${index + 1}</td><td>${escapeHtml(row.name)}${row.arabicName ? `${escapeHtml(row.arabicName)}<br/>` : ""}</td><td>${escapeHtml(row.color)}${row.colorArabic ? ` · ${escapeHtml(row.colorArabic)}` : ""}</td><td><strong>${escapeHtml(row.sku)}</strong></td><td>${escapeHtml(money(row.price))}</td></tr>`
+      )
+      .join("");
     const printWindow = window.open("", "_blank", "width=960,height=720");
     if (!printWindow) return;
-    printWindow.document.write(`<html><head><title>GHEIR SKU labels</title><style>@page{size:A4 portrait;margin:14mm}body{font-family:Arial,sans-serif;color:#2b2b2b}h1{margin:0;color:#2f3e34;font-size:24px}p{color:#5c4033;margin:6px 0 18px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#2f3e34;color:#f2ead8;text-align:left;padding:9px}td{border-bottom:1px solid #d9c7a3;padding:9px}tr:nth-child(even){background:#f7f0e3}</style></head><body><h1>GHEIR - SKU label export</h1><p>${selectedRows.length} selected labels - ${new Date().toLocaleDateString()}</p><table><thead><tr><th>#</th><th>Product</th><th>Color</th><th>SKU</th><th>Price</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`);
-    printWindow.document.close(); printWindow.focus(); printWindow.print();
+    printWindow.document.write(
+      `<html><head><title>GHEIR SKU labels</title><style>@page{size:A4 portrait;margin:14mm}body{font-family:Arial,sans-serif;color:#2b2b2b}h1{margin:0;color:#2f3e34;font-size:24px}p{color:#5c4033;margin:6px 0 18px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#2f3e34;color:#f2ead8;text-align:left;padding:9px}td{border-bottom:1px solid #d9c7a3;padding:9px}tr:nth-child(even){background:#f7f0e3}</style></head><body><h1>GHEIR - SKU label export</h1><p>${selectedRows.length} selected labels - ${new Date().toLocaleDateString()}</p><table><thead><tr><th>#</th><th>Product</th><th>Color</th><th>SKU</th><th>Price</th></tr></thead><tbody>${tableRows}</tbody></table></body></html>`
+    );
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   };
   return (
     <div className="display-in">
-      <PageHeading eyebrow={t("GHEIR / SKU Lab", "GHEIR / معمل الأكواد")} title={t("Export existing SKUs.", "تصدير الأكواد الحالية.")} detail={t("Select items and export their current identifiers.", "اختر المنتجات وصدّر معرفاتها الحالية.")} action={<button onClick={exportRows} className="flex items-center gap-2 rounded-xl bg-[#2f3e34] px-4 py-3 text-sm font-bold text-[#f2ead8] hover:bg-[#415045]"><Download className="h-4 w-4" /> {t("Export CSV", "تصدير CSV")}</button>} />
+      <PageHeading
+        eyebrow={t("GHEIR / SKU Lab", "GHEIR / معمل الأكواد")}
+        title={t("Export existing SKUs.", "تصدير الأكواد الحالية.")}
+        detail={t(
+          "Select items and export their current identifiers.",
+          "اختر المنتجات وصدّر معرفاتها الحالية."
+        )}
+        action={
+          <button
+            onClick={exportRows}
+            className="flex items-center gap-2 rounded-xl bg-[#2f3e34] px-4 py-3 text-sm font-bold text-[#f2ead8] hover:bg-[#415045]"
+          >
+            <Download className="h-4 w-4" /> {t("Export CSV", "تصدير CSV")}
+          </button>
+        }
+      />
       <div className="grid gap-5 xl:grid-cols-[.86fr_1.14fr]">
         <section className="rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] p-5">
-          <div className="flex items-center justify-between gap-3"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">{t("Products to export", "منتجات للتصدير")}</p><h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">{t("Choose products", "اختر المنتجات")}</h2></div><div className="flex gap-2"><button type="button" onClick={() => setSelectedIds(products.map((product) => product.id))} className="text-xs font-bold text-[#5c4033] underline">{t("Select all", "تحديد الكل")}</button><button type="button" onClick={() => setSelectedIds([])} className="text-xs text-[#817664] underline">{t("Clear", "مسح")}</button></div></div>
-          <div className="mt-5 flex max-h-[420px] flex-col gap-2 overflow-y-auto">{products.map((item) => <label key={item.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#d9c7a3] bg-[#eadfc9] p-3"><input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => toggleProduct(item.id)} /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-[#2f3e34]">{item.arabicName || item.name}</span><span className="mono text-[10px] uppercase tracking-[.12em] text-[#817664]">{item.baseSku}-{item.colorCode} · {item.color}</span></span><span className="text-sm font-bold text-[#5c4033]">{money(item.price)}</span></label>)}</div>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="mono text-[9px] uppercase tracking-[.18em] text-[#817664]">
+                {t("Products to export", "منتجات للتصدير")}
+              </p>
+              <h2 className="serif mt-1 text-2xl font-semibold text-[#2f3e34]">
+                {t("Choose products", "اختر المنتجات")}
+              </h2>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedIds(products.map(product => product.id))
+                }
+                className="text-xs font-bold text-[#5c4033] underline"
+              >
+                {t("Select all", "تحديد الكل")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                className="text-xs text-[#817664] underline"
+              >
+                {t("Clear", "مسح")}
+              </button>
+            </div>
+          </div>
+          <div className="mt-5 flex max-h-[420px] flex-col gap-2 overflow-y-auto">
+            {products.map(item => (
+              <label
+                key={item.id}
+                className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#d9c7a3] bg-[#eadfc9] p-3"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(item.id)}
+                  onChange={() => toggleProduct(item.id)}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-bold text-[#2f3e34]">
+                    {item.arabicName || item.name}
+                  </span>
+                  <span className="mono text-[10px] uppercase tracking-[.12em] text-[#817664]">
+                    {item.baseSku}-{item.colorCode} · {item.color}
+                  </span>
+                </span>
+                <span className="text-sm font-bold text-[#5c4033]">
+                  {money(item.price)}
+                </span>
+              </label>
+            ))}
+          </div>
         </section>
         <section className="rounded-2xl border border-[#cdbb9c] bg-[#2f3e34] p-5 text-[#f2ead8]">
-          <div className="flex items-start justify-between"><div><p className="mono text-[9px] uppercase tracking-[.18em] text-[#bfc8b9]">{rows.length} {t("labels ready", "ملصق جاهز")}</p><h2 className="serif mt-1 text-2xl font-semibold">{t("Export preview", "معاينة التصدير")}</h2></div><Printer className="h-5 w-5 text-[#d9c7a3]" /></div>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#526156] bg-[#26352c] p-3"><p className="text-xs text-[#bfc8b9]">{selectedRows.length} {t("of", "من")} {rows.length} {t("labels selected for export", "ملصق محدد للتصدير")}</p><button type="button" onClick={exportPdf} disabled={!selectedRows.length} className="rounded-lg bg-[#f2ead8] px-3 py-2 text-xs font-bold text-[#2f3e34] disabled:opacity-40">{t("Save table as PDF", "حفظ الجدول كملف PDF")}</button></div>
-          {rows.length > 0 && <div className="mt-4 max-h-72 overflow-auto rounded-xl border border-[#526156]"><table className="w-full min-w-[540px] text-left text-xs"><thead className="sticky top-0 bg-[#415045] text-[#d9c7a3]"><tr><th className="p-3">{t("Export", "تصدير")}</th><th className="p-3">{t("Product", "المنتج")}</th><th className="p-3">{t("Color", "اللون")}</th><th className="p-3">SKU</th><th className="p-3">{t("Price", "السعر")}</th></tr></thead><tbody>{rows.map((row) => { const included = !excludedSkus.includes(row.sku); return <tr key={row.sku} className={`border-t border-[#526156] ${included ? "" : "opacity-40"}`}><td className="p-3"><input type="checkbox" checked={included} onChange={() => toggleSku(row.sku)} aria-label={t(`Export ${row.sku}`, `تصدير ${row.sku}`)} /></td><td className="p-3 font-bold">{row.name}{row.arabicName ? <span className="block text-xs font-normal text-[#aab5a4]" dir="rtl">{row.arabicName}</span> : ""}</td><td className="p-3">{row.color}{row.colorArabic ? <span className="text-xs opacity-70" dir="rtl"> · {row.colorArabic}</span> : ""}</td><td className="mono p-3 text-[#d9c7a3]">{row.sku}</td><td className="p-3">{money(row.price)}</td></tr>; })}</tbody></table></div>}
-          {rows.length ? <div className="mt-5 grid gap-3 sm:grid-cols-2">{rows.slice(0, 8).map((row) => <div key={row.sku} className="rounded-xl border border-[#526156] bg-[#f2ead8] p-4 text-[#2f3e34]"><div className="flex items-start justify-between"><span className="mono text-[10px] uppercase tracking-[.14em] text-[#817664]">GHEIR</span><span className="rounded-full bg-[#e5d5b5] px-2 py-1 text-[9px] font-bold text-[#5c4033]">{row.color}{row.colorArabic ? ` · ${row.colorArabic}` : ""}</span></div><p className="mt-5 text-sm font-extrabold">{row.name}</p>{row.arabicName && <p className="mt-1 text-xs font-bold text-[#5c4033]" dir="rtl">{row.arabicName}</p>}<p className="mono mt-3 text-xs font-bold tracking-[.15em] text-[#5c4033]">{row.sku}</p><p className="mt-1 text-[10px] text-[#817664]">{money(row.price)}</p></div>)}</div> : <div className="flex min-h-56 items-center justify-center text-center text-sm text-[#bfc8b9]">{t("Select products to preview their exported identifiers.", "اختر منتجات لمعاينة المعرفات التي سيتم تصديرها.")}</div>}
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="mono text-[9px] uppercase tracking-[.18em] text-[#bfc8b9]">
+                {rows.length} {t("labels ready", "ملصق جاهز")}
+              </p>
+              <h2 className="serif mt-1 text-2xl font-semibold">
+                {t("Export preview", "معاينة التصدير")}
+              </h2>
+            </div>
+            <Printer className="h-5 w-5 text-[#d9c7a3]" />
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#526156] bg-[#26352c] p-3">
+            <p className="text-xs text-[#bfc8b9]">
+              {selectedRows.length} {t("of", "من")} {rows.length}{" "}
+              {t("labels selected for export", "ملصق محدد للتصدير")}
+            </p>
+            <button
+              type="button"
+              onClick={exportPdf}
+              disabled={!selectedRows.length}
+              className="rounded-lg bg-[#f2ead8] px-3 py-2 text-xs font-bold text-[#2f3e34] disabled:opacity-40"
+            >
+              {t("Save table as PDF", "حفظ الجدول كملف PDF")}
+            </button>
+          </div>
+          {rows.length > 0 && (
+            <div className="mt-4 max-h-72 overflow-auto rounded-xl border border-[#526156]">
+              <table className="w-full min-w-[540px] text-left text-xs">
+                <thead className="sticky top-0 bg-[#415045] text-[#d9c7a3]">
+                  <tr>
+                    <th className="p-3">{t("Export", "تصدير")}</th>
+                    <th className="p-3">{t("Product", "المنتج")}</th>
+                    <th className="p-3">{t("Color", "اللون")}</th>
+                    <th className="p-3">SKU</th>
+                    <th className="p-3">{t("Price", "السعر")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map(row => {
+                    const included = !excludedSkus.includes(row.sku);
+                    return (
+                      <tr
+                        key={row.sku}
+                        className={`border-t border-[#526156] ${included ? "" : "opacity-40"}`}
+                      >
+                        <td className="p-3">
+                          <input
+                            type="checkbox"
+                            checked={included}
+                            onChange={() => toggleSku(row.sku)}
+                            aria-label={t(
+                              `Export ${row.sku}`,
+                              `تصدير ${row.sku}`
+                            )}
+                          />
+                        </td>
+                        <td className="p-3 font-bold">
+                          {row.name}
+                          {row.arabicName ? (
+                            <span
+                              className="block text-xs font-normal text-[#aab5a4]"
+                              dir="rtl"
+                            >
+                              {row.arabicName}
+                            </span>
+                          ) : (
+                            ""
+                          )}
+                        </td>
+                        <td className="p-3">
+                          {row.color}
+                          {row.colorArabic ? (
+                            <span className="text-xs opacity-70" dir="rtl">
+                              {" "}
+                              · {row.colorArabic}
+                            </span>
+                          ) : (
+                            ""
+                          )}
+                        </td>
+                        <td className="mono p-3 text-[#d9c7a3]">{row.sku}</td>
+                        <td className="p-3">{money(row.price)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {rows.length ? (
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {rows.slice(0, 8).map(row => (
+                <div
+                  key={row.sku}
+                  className="rounded-xl border border-[#526156] bg-[#f2ead8] p-4 text-[#2f3e34]"
+                >
+                  <div className="flex items-start justify-between">
+                    <span className="mono text-[10px] uppercase tracking-[.14em] text-[#817664]">
+                      GHEIR
+                    </span>
+                    <span className="rounded-full bg-[#e5d5b5] px-2 py-1 text-[9px] font-bold text-[#5c4033]">
+                      {row.color}
+                      {row.colorArabic ? ` · ${row.colorArabic}` : ""}
+                    </span>
+                  </div>
+                  <p className="mt-5 text-sm font-extrabold">{row.name}</p>
+                  {row.arabicName && (
+                    <p
+                      className="mt-1 text-xs font-bold text-[#5c4033]"
+                      dir="rtl"
+                    >
+                      {row.arabicName}
+                    </p>
+                  )}
+                  <p className="mono mt-3 text-xs font-bold tracking-[.15em] text-[#5c4033]">
+                    {row.sku}
+                  </p>
+                  <p className="mt-1 text-[10px] text-[#817664]">
+                    {money(row.price)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex min-h-56 items-center justify-center text-center text-sm text-[#bfc8b9]">
+              {t(
+                "Select products to preview their exported identifiers.",
+                "اختر منتجات لمعاينة المعرفات التي سيتم تصديرها."
+              )}
+            </div>
+          )}
         </section>
       </div>
     </div>
@@ -255,24 +2435,72 @@ function SkuLab({ products, isArabic }: { products: ProductRecord[]; isArabic: b
 
 export default function Home() {
   const { logout } = useAuth();
-  const [role, setRole] = useState<UserRole>("cashier"); const [section, setSection] = useState<AppSection>("register"); const [language, setLanguage] = useState<"en" | "ar">("en"); const [products, setProducts] = useState<ProductRecord[]>(demoProducts); const [sales, setSales] = useState<SaleRecord[]>(demoSales); const [notice, setNotice] = useState("");
+  const [role, setRole] = useState<UserRole>("cashier");
+  const [section, setSection] = useState<AppSection>("register");
+  const [language, setLanguage] = useState<"en" | "ar">("en");
+  const [products, setProducts] = useState<ProductRecord[]>(demoProducts);
+  const [sales, setSales] = useState<SaleRecord[]>(demoSales);
+  const [notice, setNotice] = useState("");
   const [pendingCount, setPendingCount] = useState(0);
-  const [inventoryConfigured, setInventoryConfigured] = useState(() => remoteEnabledSync());
-  const [online, setOnline] = useState(() => (typeof navigator !== "undefined" ? navigator.onLine : true));
+  const [inventoryConfigured, setInventoryConfigured] = useState(() =>
+    remoteEnabledSync()
+  );
+  const [online, setOnline] = useState(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
   const [remoteReachable, setRemoteReachable] = useState(true);
   const isArabic = language === "ar";
   const t = makeT(isArabic);
   const [receiptLogo, setReceiptLogo] = useState("");
-  useEffect(() => { let active = true; fetch("/gheir-brand-lockup.png").then((response) => response.blob()).then((blob) => new Promise<string>((resolve) => { const reader = new FileReader(); reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : ""); reader.readAsDataURL(blob); })).then((logoUri) => { if (active) setReceiptLogo(logoUri); }).catch(() => {}); return () => { active = false; }; }, []);
-  useEffect(() => { try { const storedRole = localStorage.getItem(demoRoleStorageKey) as UserRole | null; if (storedRole === "cashier" || storedRole === "admin") setRole(storedRole); const storedLanguage = localStorage.getItem("gheir-language"); if (storedLanguage === "en" || storedLanguage === "ar") setLanguage(storedLanguage); if (!remoteEnabledSync() && !usesElectronBridge()) { setProducts(readDemoProducts()); } setSales(readDemoSales()); } catch {} }, []);
+  useEffect(() => {
+    let active = true;
+    fetch("/gheir-brand-lockup.png")
+      .then(response => response.blob())
+      .then(
+        blob =>
+          new Promise<string>(resolve => {
+            const reader = new FileReader();
+            reader.onloadend = () =>
+              resolve(typeof reader.result === "string" ? reader.result : "");
+            reader.readAsDataURL(blob);
+          })
+      )
+      .then(logoUri => {
+        if (active) setReceiptLogo(logoUri);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+  useEffect(() => {
+    try {
+      const storedRole = localStorage.getItem(
+        demoRoleStorageKey
+      ) as UserRole | null;
+      if (storedRole === "cashier" || storedRole === "admin")
+        setRole(storedRole);
+      const storedLanguage = localStorage.getItem("gheir-language");
+      if (storedLanguage === "en" || storedLanguage === "ar")
+        setLanguage(storedLanguage);
+      if (!remoteEnabledSync() && !usesElectronBridge()) {
+        setProducts(readDemoProducts());
+      }
+      setSales(readDemoSales());
+    } catch {}
+  }, []);
   useEffect(() => {
     if (!remoteEnabledSync() && !usesElectronBridge()) return;
     let cancelled = false;
-    const applySnapshot = async (opts?: { force?: boolean; preferDelta?: boolean }) => {
+    const applySnapshot = async (opts?: {
+      force?: boolean;
+      preferDelta?: boolean;
+    }) => {
       const snapshot = await loadInventorySnapshot(opts);
       if (cancelled) return;
       setInventoryConfigured(snapshot.configured);
-      if (snapshot.configured || snapshot.products.length) setProducts(snapshot.products);
+      if (snapshot.configured || snapshot.products.length)
+        setProducts(snapshot.products);
       setPendingCount(snapshot.pendingCount);
     };
     const flushPending = async () => {
@@ -296,7 +2524,9 @@ export default function Home() {
       if (status.changed) await applySnapshot({ preferDelta: true });
       await flushPending();
     };
-    void applySnapshot({ force: true }).then(() => flushPending()).then(() => poll());
+    void applySnapshot({ force: true })
+      .then(() => flushPending())
+      .then(() => poll());
     const onOnline = () => {
       setOnline(true);
       void poll();
@@ -307,7 +2537,9 @@ export default function Home() {
     };
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
-    const timer = window.setInterval(() => { void poll(); }, 25_000);
+    const timer = window.setInterval(() => {
+      void poll();
+    }, 25_000);
     return () => {
       cancelled = true;
       window.removeEventListener("online", onOnline);
@@ -315,17 +2547,67 @@ export default function Home() {
       window.clearInterval(timer);
     };
   }, []);
-  const dashboard = useMemo(() => makeDashboard(sales, products), [products, sales]);
-  useEffect(() => { document.documentElement.dir = language === "ar" ? "rtl" : "ltr"; document.documentElement.lang = language; document.title = t("GHEIR POS System", "نظام نقاط البيع لغيّر"); }, [language]);
-  const handleLanguage = (nextLanguage: "en" | "ar") => { setLanguage(nextLanguage); try { localStorage.setItem("gheir-language", nextLanguage); } catch {} };
-  const handleRole = (nextRole: UserRole) => { setRole(nextRole); try { localStorage.setItem(demoRoleStorageKey, nextRole); } catch {} if (nextRole === "cashier" && (section === "catalog" || section === "sku" || section === "reports")) setSection("register"); setNotice(nextRole === "admin" ? t("Admin preview active · Full store controls.", "معاينة المدير مفعلة · تحكم كامل بالمتجر.") : t("Cashier preview active · Register + orders.", "معاينة أمين الصندوق مفعلة · نقطة البيع والطلبات.")); window.setTimeout(() => setNotice(""), 2800); };
-  const handleSection = (nextSection: AppSection) => { if (!roleCanAccess(role, nextSection)) { setNotice(t(noPermissionCopy, "دور أمين الصندوق يتيح البيع وعرض الطلبات. اطلب من المدير إدارة المنتجات أو الملصقات.")); window.setTimeout(() => setNotice(""), 2800); return; } setSection(nextSection); };
+  const dashboard = useMemo(
+    () => makeDashboard(sales, products),
+    [products, sales]
+  );
+  useEffect(() => {
+    document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
+    document.documentElement.lang = language;
+    document.title = t("GHEIR POS System", "نظام نقاط البيع لغيّر");
+  }, [language]);
+  const handleLanguage = (nextLanguage: "en" | "ar") => {
+    setLanguage(nextLanguage);
+    try {
+      localStorage.setItem("gheir-language", nextLanguage);
+    } catch {}
+  };
+  const handleRole = (nextRole: UserRole) => {
+    setRole(nextRole);
+    try {
+      localStorage.setItem(demoRoleStorageKey, nextRole);
+    } catch {}
+    if (
+      nextRole === "cashier" &&
+      (section === "catalog" || section === "sku" || section === "reports")
+    )
+      setSection("register");
+    setNotice(
+      nextRole === "admin"
+        ? t(
+            "Admin preview active · Full store controls.",
+            "معاينة المدير مفعلة · تحكم كامل بالمتجر."
+          )
+        : t(
+            "Cashier preview active · Register + orders.",
+            "معاينة أمين الصندوق مفعلة · نقطة البيع والطلبات."
+          )
+    );
+    window.setTimeout(() => setNotice(""), 2800);
+  };
+  const handleSection = (nextSection: AppSection) => {
+    if (!roleCanAccess(role, nextSection)) {
+      setNotice(
+        t(
+          noPermissionCopy,
+          "دور أمين الصندوق يتيح البيع وعرض الطلبات. اطلب من المدير إدارة المنتجات أو الملصقات."
+        )
+      );
+      window.setTimeout(() => setNotice(""), 2800);
+      return;
+    }
+    setSection(nextSection);
+  };
   const handleSale = (sale: SaleRecord, lines: CartLine[]) => {
-    const qtyById = new Map(lines.map((line) => [line.product.id, line.quantity]));
+    const qtyById = new Map(
+      lines.map(line => [line.product.id, line.quantity])
+    );
     const nextSales = [sale, ...sales];
-    const nextProducts = products.map((product) => {
+    const nextProducts = products.map(product => {
       const qty = qtyById.get(product.id);
-      return qty ? { ...product, stock: Math.max(0, product.stock - qty) } : product;
+      return qty
+        ? { ...product, stock: Math.max(0, product.stock - qty) }
+        : product;
     });
     setSales(nextSales);
     setProducts(nextProducts);
@@ -335,8 +2617,10 @@ export default function Home() {
     void (async () => {
       if (!(await remoteEnabled())) return;
       const items = lines
-        .filter((line) => line.product.baseSku && line.product.baseSku !== "MANUAL")
-        .map((line) => ({
+        .filter(
+          line => line.product.baseSku && line.product.baseSku !== "MANUAL"
+        )
+        .map(line => ({
           sku: line.product.baseSku,
           quantity: line.quantity,
           unitPrice: line.product.price,
@@ -359,10 +2643,63 @@ export default function Home() {
       setPendingCount(snapshot.pendingCount);
     })();
   };
-  const handleAddProduct = (product: ProductRecord) => { const nextProducts = [...products, product]; setProducts(nextProducts); persistDemoProducts(nextProducts); setNotice(`${product.arabicName || product.name} ${t("added to the product shelf.", "تمت إضافته إلى رف المنتجات.")}`); window.setTimeout(() => setNotice(""), 2800); };
-  const handleUpdateProduct = (product: ProductRecord) => { const nextProducts = products.map((item) => item.id === product.id ? { ...product } : item); setProducts(nextProducts); persistDemoProducts(nextProducts); setNotice(`${product.arabicName || product.name} ${t("updated.", "تم التحديث.")}`); window.setTimeout(() => setNotice(""), 2800); };
-  const handleDeleteProduct = (id: number) => { const target = products.find((item) => item.id === id); const nextProducts = products.filter((item) => item.id !== id); setProducts(nextProducts); persistDemoProducts(nextProducts); setNotice(target ? `${target.arabicName || target.name} ${t("removed from the shelf.", "أُزيل من الرف.")}` : t("Product removed.", "تم حذف المنتج.")); window.setTimeout(() => setNotice(""), 2800); };
-  const content = section === "register" ? <Register products={products} sales={sales} onSale={handleSale} role={role} isArabic={isArabic} receiptLogo={receiptLogo} /> : section === "orders" ? <Orders sales={sales} isArabic={isArabic} receiptLogo={receiptLogo} /> : section === "catalog" ? <Catalog products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct} isArabic={isArabic} /> : section === "sku" ? <SkuLab products={products} isArabic={isArabic} /> : <Reports products={products} sales={sales} isArabic={isArabic} />;
+  const handleAddProduct = (product: ProductRecord) => {
+    const nextProducts = [...products, product];
+    setProducts(nextProducts);
+    persistDemoProducts(nextProducts);
+    setNotice(
+      `${product.arabicName || product.name} ${t("added to the product shelf.", "تمت إضافته إلى رف المنتجات.")}`
+    );
+    window.setTimeout(() => setNotice(""), 2800);
+  };
+  const handleUpdateProduct = (product: ProductRecord) => {
+    const nextProducts = products.map(item =>
+      item.id === product.id ? { ...product } : item
+    );
+    setProducts(nextProducts);
+    persistDemoProducts(nextProducts);
+    setNotice(
+      `${product.arabicName || product.name} ${t("updated.", "تم التحديث.")}`
+    );
+    window.setTimeout(() => setNotice(""), 2800);
+  };
+  const handleDeleteProduct = (id: number) => {
+    const target = products.find(item => item.id === id);
+    const nextProducts = products.filter(item => item.id !== id);
+    setProducts(nextProducts);
+    persistDemoProducts(nextProducts);
+    setNotice(
+      target
+        ? `${target.arabicName || target.name} ${t("removed from the shelf.", "أُزيل من الرف.")}`
+        : t("Product removed.", "تم حذف المنتج.")
+    );
+    window.setTimeout(() => setNotice(""), 2800);
+  };
+  const content =
+    section === "register" ? (
+      <Register
+        products={products}
+        sales={sales}
+        onSale={handleSale}
+        role={role}
+        isArabic={isArabic}
+        receiptLogo={receiptLogo}
+      />
+    ) : section === "orders" ? (
+      <Orders sales={sales} isArabic={isArabic} receiptLogo={receiptLogo} />
+    ) : section === "catalog" ? (
+      <Catalog
+        products={products}
+        onAddProduct={handleAddProduct}
+        onUpdateProduct={handleUpdateProduct}
+        onDeleteProduct={handleDeleteProduct}
+        isArabic={isArabic}
+      />
+    ) : section === "sku" ? (
+      <SkuLab products={products} isArabic={isArabic} />
+    ) : (
+      <Reports products={products} sales={sales} isArabic={isArabic} />
+    );
   const connectionLabel = !inventoryConfigured
     ? t("Local catalog", "كتالوج محلي")
     : !online || !remoteReachable
@@ -370,6 +2707,67 @@ export default function Home() {
       : pendingCount > 0
         ? t(`Sync pending · ${pendingCount}`, `مزامنة معلّقة · ${pendingCount}`)
         : t("Register online", "عداد البيع متصل");
-  const connection = { ok: inventoryConfigured && online && remoteReachable && pendingCount === 0, label: connectionLabel };
-  return <Shell role={role} section={section} onSection={handleSection} onRole={handleRole} notice={notice} language={language} onLanguage={handleLanguage} connection={connection} onLogout={logout}><div className="mb-5 flex items-center justify-between gap-3"><div className="flex items-center gap-1 rounded-full border border-[#cdbb9c] bg-[#eadfc9] p-1 text-[10px]"><button type="button" onClick={() => handleLanguage("en")} className={`rounded-full px-2 py-1 font-bold ${language === "en" ? "bg-[#2f3e34] text-[#f2ead8]" : "text-[#817664]"}`}>EN</button><button type="button" onClick={() => handleLanguage("ar")} className={`rounded-full px-2 py-1 font-bold ${language === "ar" ? "bg-[#2f3e34] text-[#f2ead8]" : "text-[#817664]"}`}>عربي</button></div><div className="hidden items-center gap-2 text-xs text-[#817664] md:flex"><span className="mono text-[9px] uppercase tracking-[.14em]">{isArabic ? roleLabelAr[role] : roleCopy[role].label}</span>{isArabic ? <ChevronLeft className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}<span>{isArabic ? greetingAr[role] : getRoleGreeting(role)}</span></div><div className="ms-auto flex items-center gap-2 rounded-full border border-[#cdbb9c] bg-[#eadfc9] px-3 py-2 text-[10px] text-[#71675b]"><span className="h-1.5 w-1.5 rounded-full bg-[#6e8b63]" /> {appFooterMeta}</div></div>{content}<footer className="mt-9 flex flex-col justify-between gap-3 border-t border-[#cdbb9c] pt-4 text-[10px] text-[#817664] sm:flex-row"><span>{t(architectureCopy, "Node.js + tRPC + Drizzle الآن؛ غلاف Electron لتطبيق سطح المكتب لاحقاً.")}</span><span>{storeAddress} · {t(printerPaper, "80مم حراري")}</span></footer></Shell>;
+  const connection = {
+    ok: inventoryConfigured && online && remoteReachable && pendingCount === 0,
+    label: connectionLabel,
+  };
+  return (
+    <Shell
+      role={role}
+      section={section}
+      onSection={handleSection}
+      onRole={handleRole}
+      notice={notice}
+      language={language}
+      onLanguage={handleLanguage}
+      connection={connection}
+      onLogout={logout}
+    >
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1 rounded-full border border-[#cdbb9c] bg-[#eadfc9] p-1 text-[10px]">
+          <button
+            type="button"
+            onClick={() => handleLanguage("en")}
+            className={`rounded-full px-2 py-1 font-bold ${language === "en" ? "bg-[#2f3e34] text-[#f2ead8]" : "text-[#817664]"}`}
+          >
+            EN
+          </button>
+          <button
+            type="button"
+            onClick={() => handleLanguage("ar")}
+            className={`rounded-full px-2 py-1 font-bold ${language === "ar" ? "bg-[#2f3e34] text-[#f2ead8]" : "text-[#817664]"}`}
+          >
+            عربي
+          </button>
+        </div>
+        <div className="hidden items-center gap-2 text-xs text-[#817664] md:flex">
+          <span className="mono text-[9px] uppercase tracking-[.14em]">
+            {isArabic ? roleLabelAr[role] : roleCopy[role].label}
+          </span>
+          {isArabic ? (
+            <ChevronLeft className="h-3 w-3" />
+          ) : (
+            <ChevronRight className="h-3 w-3" />
+          )}
+          <span>{isArabic ? greetingAr[role] : getRoleGreeting(role)}</span>
+        </div>
+        <div className="ms-auto flex items-center gap-2 rounded-full border border-[#cdbb9c] bg-[#eadfc9] px-3 py-2 text-[10px] text-[#71675b]">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#6e8b63]" />{" "}
+          {appFooterMeta}
+        </div>
+      </div>
+      {content}
+      <footer className="mt-9 flex flex-col justify-between gap-3 border-t border-[#cdbb9c] pt-4 text-[10px] text-[#817664] sm:flex-row">
+        <span>
+          {t(
+            architectureCopy,
+            "Node.js + tRPC + Drizzle الآن؛ غلاف Electron لتطبيق سطح المكتب لاحقاً."
+          )}
+        </span>
+        <span>
+          {storeAddress} · {t(printerPaper, "80مم حراري")}
+        </span>
+      </footer>
+    </Shell>
+  );
 }

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
 @custom-variant dark (&:is(.dark *));
@@ -20,59 +20,273 @@
   --font-mono: var(--app-font-mono);
 }
 
-:root { --background: 38 42% 92%; --foreground: 20 10% 17%; --card: 40 45% 95%; --card-foreground: 20 10% 17%; --primary: 144 14% 21%; --primary-foreground: 40 45% 95%; --muted: 38 27% 86%; --muted-foreground: 22 8% 41%; --border: 35 24% 78%; --input: 35 24% 78%; --ring: 144 14% 21%; --app-font-sans: 'IBM Plex Sans Arabic', 'Manrope', sans-serif; --app-font-serif: 'Cormorant Garamond', serif; --app-font-mono: 'DM Mono', monospace; }
-* { box-sizing: border-box; }
-html { background: #f2ead8; }
-body { margin: 0; min-width: 320px; background: #f2ead8; color: #2b2b2b; font-family: var(--app-font-sans); font-feature-settings: "ss01" 1, "cv11" 1; }
-button, input, select { font: inherit; }
-button { cursor: pointer; }
-::selection { background: #5c4033; color: #f2ead8; }
-.serif { font-family: var(--app-font-serif); }
-.mono { font-family: var(--app-font-mono); }
-.gheir-shell { min-height: 100dvh; height: auto; overflow-x: hidden; overflow-y: auto; background: radial-gradient(circle at 84% 0%, rgba(217,199,163,.26), transparent 30rem), #f2ead8; }
-.grain::after { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .035; z-index: 40; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E"); }
-.product-art { transition: transform .22s ease; }
-.product-card:hover .product-art { transform: translateY(-4px) rotate(-2deg); }
-.display-in { animation: display-in .4s ease both; }
-@keyframes display-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-.scrollbar-warm::-webkit-scrollbar { width: 6px; height: 6px; }
-.scrollbar-warm::-webkit-scrollbar-thumb { background: #c7ae88; border-radius: 999px; }
-@media (max-width: 1023px) { .gheir-shell main { min-width: 0; } .gheir-shell main > div:last-child { overflow-x: hidden; } .display-in { min-width: 0; overflow-y: auto !important; } .display-in > .grid { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: auto auto; overflow: visible !important; } .display-in > .grid > section, .display-in > .grid > aside { min-height: 0; overflow: visible !important; } .display-in .register-products { flex: none; height: min(52dvh, 560px); } .display-in .product-card { min-width: 0; } }
-@media (max-width: 767px) { .mobile-stack { grid-template-columns: 1fr !important; } .gheir-shell aside { max-width: min(86vw, 248px); } .gheir-shell main { width: 100%; } }
-@media (min-width: 768px) { .gheir-shell[dir="ltr"] aside { left: 0; right: auto; transform: none !important; } .gheir-shell[dir="rtl"] aside { right: 0; left: auto; transform: none !important; } }
-.gheir-shell[dir="rtl"] .text-left { text-align: right; } .gheir-shell[dir="rtl"] .text-right { text-align: left; }
-.gheir-shell .display-in { display: flex; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; }
-.gheir-shell .display-in > .grid { min-height: 0; flex: 1 1 auto; overflow: hidden; }
-.gheir-shell .display-in > .grid > section,
-.gheir-shell .display-in > .grid > aside { min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; }
-.gheir-shell .display-in > .grid > section::-webkit-scrollbar,
-.gheir-shell .display-in > .grid > aside::-webkit-scrollbar { width: 6px; height: 6px; }
-.gheir-shell .display-in > .grid > section::-webkit-scrollbar-thumb,
-.gheir-shell .display-in > .grid > aside::-webkit-scrollbar-thumb { background: #c7ae88; border-radius: 999px; }
-@media (max-width: 767px) { .gheir-shell .display-in { padding-bottom: 1rem; } .gheir-shell .display-in > .grid { overflow: visible; } .gheir-shell .display-in > .grid > section, .gheir-shell .display-in > .grid > aside { overflow-y: auto; } }
-.gheir-shell[dir="rtl"] .serif:not(.brand-wordmark) { letter-spacing: 0 !important; }
-
-/* Show a compact nine-product window; scroll the catalog, not the receipt. */
-.gheir-shell .register-layout { align-items: start; }
-.gheir-shell .register-layout > section { height: fit-content; }
-.gheir-shell .register-products { flex: none; min-height: 0; height: 730px; max-height: 730px; overflow-y: auto; overscroll-behavior: contain; }
-.gheir-shell .receipt-panel { align-self: start; height: fit-content; max-height: none; overflow: visible; }
-@media (max-width: 1279px) {
-  .gheir-shell .register-products { height: 980px; max-height: 980px; }
+:root {
+  --background: 38 42% 92%;
+  --foreground: 20 10% 17%;
+  --card: 40 45% 95%;
+  --card-foreground: 20 10% 17%;
+  --primary: 144 14% 21%;
+  --primary-foreground: 40 45% 95%;
+  --muted: 38 27% 86%;
+  --muted-foreground: 22 8% 41%;
+  --border: 35 24% 78%;
+  --input: 35 24% 78%;
+  --ring: 144 14% 21%;
+  --app-font-sans: "IBM Plex Sans Arabic", "Manrope", sans-serif;
+  --app-font-serif: "Cormorant Garamond", serif;
+  --app-font-mono: "DM Mono", monospace;
 }
-@media (min-width: 768px) and (max-width: 1023px) {
-  .gheir-shell .register-layout { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: auto auto !important; flex: none; }
-  .gheir-shell .register-layout > section,
-  .gheir-shell .register-layout > aside { overflow: visible; }
-  .gheir-shell .register-products { height: 540px; max-height: 540px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
-  .gheir-shell .receipt-panel { width: 100%; }
+* {
+  box-sizing: border-box;
 }
-@media (min-width: 1024px) and (max-width: 1279px) {
-  .gheir-shell .register-layout { grid-template-columns: minmax(0, 1fr) 300px !important; grid-template-rows: auto !important; flex: none; }
-  .gheir-shell .register-layout > section,
-  .gheir-shell .register-layout > aside { overflow: visible; }
-  .gheir-shell .register-products { height: 980px; max-height: 980px; }
+html {
+  background: #f2ead8;
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #f2ead8;
+  color: #2b2b2b;
+  font-family: var(--app-font-sans);
+  font-feature-settings:
+    "ss01" 1,
+    "cv11" 1;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+::selection {
+  background: #5c4033;
+  color: #f2ead8;
+}
+.serif {
+  font-family: var(--app-font-serif);
+}
+.mono {
+  font-family: var(--app-font-mono);
+}
+.gheir-shell {
+  min-height: 100dvh;
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background:
+    radial-gradient(
+      circle at 84% 0%,
+      rgba(217, 199, 163, 0.26),
+      transparent 30rem
+    ),
+    #f2ead8;
+}
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  z-index: 40;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+}
+.product-art {
+  transition: transform 0.22s ease;
+}
+.product-card:hover .product-art {
+  transform: translateY(-4px) rotate(-2deg);
+}
+.display-in {
+  animation: display-in 0.4s ease both;
+}
+@keyframes display-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.scrollbar-warm::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-warm::-webkit-scrollbar-thumb {
+  background: #c7ae88;
+  border-radius: 999px;
+}
+@media (max-width: 1023px) {
+  .gheir-shell main {
+    min-width: 0;
+  }
+  .gheir-shell main > div:last-child {
+    overflow-x: hidden;
+  }
+  .display-in {
+    min-width: 0;
+    overflow-y: auto !important;
+  }
+  .display-in > .grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto auto;
+    overflow: visible !important;
+  }
+  .display-in > .grid > section,
+  .display-in > .grid > aside {
+    min-height: 0;
+    overflow: visible !important;
+  }
+  .display-in .register-products {
+    flex: none;
+    height: min(52dvh, 560px);
+  }
+  .display-in .product-card {
+    min-width: 0;
+  }
 }
 @media (max-width: 767px) {
-  .gheir-shell .register-products { height: 730px; max-height: 730px; }
+  .mobile-stack {
+    grid-template-columns: 1fr !important;
+  }
+  .gheir-shell aside {
+    max-width: min(86vw, 248px);
+  }
+  .gheir-shell main {
+    width: 100%;
+  }
+}
+@media (min-width: 768px) {
+  .gheir-shell[dir="ltr"] aside {
+    left: 0;
+    right: auto;
+    transform: none !important;
+  }
+  .gheir-shell[dir="rtl"] aside {
+    right: 0;
+    left: auto;
+    transform: none !important;
+  }
+}
+.gheir-shell[dir="rtl"] .text-left {
+  text-align: right;
+}
+.gheir-shell[dir="rtl"] .text-right {
+  text-align: left;
+}
+.gheir-shell .display-in {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+.gheir-shell .display-in > .grid {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+.gheir-shell .display-in > .grid > section,
+.gheir-shell .display-in > .grid > aside {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+.gheir-shell .display-in > .grid > section::-webkit-scrollbar,
+.gheir-shell .display-in > .grid > aside::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.gheir-shell .display-in > .grid > section::-webkit-scrollbar-thumb,
+.gheir-shell .display-in > .grid > aside::-webkit-scrollbar-thumb {
+  background: #c7ae88;
+  border-radius: 999px;
+}
+@media (max-width: 767px) {
+  .gheir-shell .display-in {
+    padding-bottom: 1rem;
+  }
+  .gheir-shell .display-in > .grid {
+    overflow: visible;
+  }
+  .gheir-shell .display-in > .grid > section,
+  .gheir-shell .display-in > .grid > aside {
+    overflow-y: auto;
+  }
+}
+.gheir-shell[dir="rtl"] .serif:not(.brand-wordmark) {
+  letter-spacing: 0 !important;
+}
+
+/* Show a compact nine-product window; scroll the catalog, not the receipt. */
+.gheir-shell .register-layout {
+  align-items: start;
+}
+.gheir-shell .register-layout > section {
+  height: fit-content;
+}
+.gheir-shell .register-products {
+  flex: none;
+  min-height: 0;
+  height: 730px;
+  max-height: 730px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.gheir-shell .receipt-panel {
+  align-self: start;
+  height: fit-content;
+  max-height: none;
+  overflow: visible;
+}
+@media (max-width: 1279px) {
+  .gheir-shell .register-products {
+    height: 980px;
+    max-height: 980px;
+  }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .gheir-shell .register-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto auto !important;
+    flex: none;
+  }
+  .gheir-shell .register-layout > section,
+  .gheir-shell .register-layout > aside {
+    overflow: visible;
+  }
+  .gheir-shell .register-products {
+    height: 540px;
+    max-height: 540px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+  .gheir-shell .receipt-panel {
+    width: 100%;
+  }
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .gheir-shell .register-layout {
+    grid-template-columns: minmax(0, 1fr) 300px !important;
+    grid-template-rows: auto !important;
+    flex: none;
+  }
+  .gheir-shell .register-layout > section,
+  .gheir-shell .register-layout > aside {
+    overflow: visible;
+  }
+  .gheir-shell .register-products {
+    height: 980px;
+    max-height: 980px;
+  }
+}
+@media (max-width: 767px) {
+  .gheir-shell .register-products {
+    height: 730px;
+    max-height: 730px;
+  }
 }

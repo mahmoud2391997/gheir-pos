@@ -63,11 +63,12 @@ This audit is written **before implementing new production code**, per the task 
   - `GET /api/pos/status`
   - `GET /api/pos/products` (+ optional `?since=...`)
   - `POST /api/pos/sales`
-  These endpoints are referenced by:
+    These endpoints are referenced by:
   - `electron/inventory/sync.ts` (main-process sync worker)
   - `client/src/_core/remoteInventory.ts` (web fallback)
 
 **Implication**: either:
+
 - These `/api/pos/*` routes exist on a different backend (e.g. the “website” at `gheir.vercel.app`), **not in this repo**, or
 - They are a missing feature that must be implemented here before desktop inventory/sales sync can work end-to-end on a self-hosted deployment.
 
@@ -132,4 +133,3 @@ Today, there is **no** Drizzle SQLite dialect setup, no shared schema for a loca
 3. Add a **real login screen** (shadcn/Radix styling) and wouter route-guarding instead of Manus `startLogin()`.
 4. Validate Electron cookie/session persistence behavior in dev, and ensure logout clears cookies in Electron session storage.
 5. Production hardening: fill `electron-builder.yml` resources (icons), document runtime config expectations, run `check`, `format`, `test`, and add auth test coverage.
-

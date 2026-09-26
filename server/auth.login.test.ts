@@ -4,7 +4,7 @@ import { hashPassword } from "./_core/password";
 import type { TrpcContext } from "./_core/context";
 import { appRouter } from "./routers";
 
-vi.mock("./db", async (importOriginal) => {
+vi.mock("./db", async importOriginal => {
   const actual = await importOriginal<typeof import("./db")>();
   return {
     ...actual,
@@ -30,7 +30,11 @@ function createAnonymousContext(): { ctx: TrpcContext; cookies: CookieCall[] } {
       headers: {},
     } as TrpcContext["req"],
     res: {
-      cookie: (name: string, value: string, options: Record<string, unknown>) => {
+      cookie: (
+        name: string,
+        value: string,
+        options: Record<string, unknown>
+      ) => {
         cookies.push({ name, value, options });
       },
       clearCookie: vi.fn(),
@@ -65,7 +69,10 @@ describe("auth.login", () => {
     const { ctx, cookies } = createAnonymousContext();
     const caller = appRouter.createCaller(ctx);
 
-    const result = await caller.auth.login({ username: "admin", password: "pw" });
+    const result = await caller.auth.login({
+      username: "admin",
+      password: "pw",
+    });
 
     expect(result).toMatchObject({
       id: 1,
@@ -105,9 +112,10 @@ describe("auth.login", () => {
     const { ctx } = createAnonymousContext();
     const caller = appRouter.createCaller(ctx);
 
-    await expect(caller.auth.login({ username: "admin", password: "wrong" })).rejects.toMatchObject({
+    await expect(
+      caller.auth.login({ username: "admin", password: "wrong" })
+    ).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
   });
 });
-

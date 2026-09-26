@@ -64,7 +64,7 @@ export function registerPosRoutes(app: Express) {
           z.object({
             sku: z.string().trim().min(1).max(64),
             quantity: z.number().int().positive().max(999),
-          }),
+          })
         )
         .min(1)
         .max(200),
@@ -84,8 +84,11 @@ export function registerPosRoutes(app: Express) {
       });
       res.json({ ok: true, deduped: result.deduped });
     } catch (error) {
-      res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
+      res
+        .status(400)
+        .json({
+          error: error instanceof Error ? error.message : String(error),
+        });
     }
   });
 }
-

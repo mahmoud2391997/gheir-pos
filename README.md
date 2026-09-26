@@ -67,4 +67,3 @@ Artifacts are written to `release/`.
 - **Cookies**: defaults to `COOKIE_SAMESITE=lax`. If you embed the app in an iframe or need cross-site cookies, set `COOKIE_SAMESITE=none` and serve over HTTPS.
 - **Code signing / notarization**: required for smooth Windows/macOS distribution; this repo does not include certificates.
 - **Auto-update**: not configured yet (add `electron-updater` / release hosting if needed).
-

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { applyPendingToStock, mapRemoteProduct, mergeProductsBySku } from "./remoteInventory";
+import {
+  applyPendingToStock,
+  mapRemoteProduct,
+  mergeProductsBySku,
+} from "./remoteInventory";
 
 describe("remote inventory etag helpers", () => {
   it("maps remote products keyed by sku", () => {
@@ -18,18 +22,50 @@ describe("remote inventory etag helpers", () => {
 
   it("merges delta products by sku without duplicating", () => {
     const existing = [
-      mapRemoteProduct({ name: "A", slug: "a", sku: "A-1", category: "X", price: 10, stock: 5 }),
-      mapRemoteProduct({ name: "B", slug: "b", sku: "B-1", category: "X", price: 20, stock: 2 }),
+      mapRemoteProduct({
+        name: "A",
+        slug: "a",
+        sku: "A-1",
+        category: "X",
+        price: 10,
+        stock: 5,
+      }),
+      mapRemoteProduct({
+        name: "B",
+        slug: "b",
+        sku: "B-1",
+        category: "X",
+        price: 20,
+        stock: 2,
+      }),
     ];
-    const delta = [mapRemoteProduct({ name: "A", slug: "a", sku: "A-1", category: "X", price: 10, stock: 3 })];
+    const delta = [
+      mapRemoteProduct({
+        name: "A",
+        slug: "a",
+        sku: "A-1",
+        category: "X",
+        price: 10,
+        stock: 3,
+      }),
+    ];
     const merged = mergeProductsBySku(existing, delta);
     expect(merged).toHaveLength(2);
-    expect(merged.find((p) => p.baseSku === "A-1")?.stock).toBe(3);
-    expect(merged.find((p) => p.baseSku === "B-1")?.stock).toBe(2);
+    expect(merged.find(p => p.baseSku === "A-1")?.stock).toBe(3);
+    expect(merged.find(p => p.baseSku === "B-1")?.stock).toBe(2);
   });
 
   it("applies pending stock by sku", () => {
-    const products = [mapRemoteProduct({ name: "A", slug: "a", sku: "A-1", category: "X", price: 10, stock: 5 })];
+    const products = [
+      mapRemoteProduct({
+        name: "A",
+        slug: "a",
+        sku: "A-1",
+        category: "X",
+        price: 10,
+        stock: 5,
+      }),
+    ];
     const pending = [
       {
         clientSaleId: "GH-1",

@@ -10,7 +10,12 @@ export type PendingSaleRow = {
   createdAt: string;
   paymentMethod: PaymentMethod;
   notes?: string;
-  items: Array<{ sku: string; quantity: number; unitPrice: number; name: string }>;
+  items: Array<{
+    sku: string;
+    quantity: number;
+    unitPrice: number;
+    name: string;
+  }>;
   status: "pending" | "synced" | "failed";
   attempts: number;
   lastError?: string | null;
@@ -62,7 +67,9 @@ export function getDb() {
 }
 
 export function getMeta(key: string): string | null {
-  const row = getDb().prepare("SELECT value FROM sync_meta WHERE key = ?").get(key) as { value: string } | undefined;
+  const row = getDb()
+    .prepare("SELECT value FROM sync_meta WHERE key = ?")
+    .get(key) as { value: string } | undefined;
   return row?.value ?? null;
 }
 
@@ -74,7 +81,7 @@ export function setMeta(key: string, value: string | null) {
   getDb()
     .prepare(
       `INSERT INTO sync_meta (key, value) VALUES (@key, @value)
-       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`
     )
     .run({ key, value });
 }
@@ -85,23 +92,38 @@ export function writeCachedProducts(products: ProductRecord[]) {
   const tx = database.transaction((rows: ProductRecord[]) => {
     database.prepare("DELETE FROM cached_products").run();
     const insert = database.prepare(
-      "INSERT INTO cached_products (id, payload_json, updated_at) VALUES (@id, @payload_json, @updated_at)",
+      "INSERT INTO cached_products (id, payload_json, updated_at) VALUES (@id, @payload_json, @updated_at)"
     );
     for (const product of rows) {
-      insert.run({ id: product.id, payload_json: JSON.stringify(product), updated_at: now });
+      insert.run({
+        id: product.id,
+        payload_json: JSON.stringify(product),
+        updated_at: now,
+      });
     }
   });
   tx(products);
 }
 
 export function readCachedProducts(): ProductRecord[] {
-  const rows = getDb().prepare("SELECT payload_json FROM cached_products ORDER BY id").all() as Array<{ payload_json: string }>;
-  return rows.map((row) => JSON.parse(row.payload_json) as ProductRecord);
+  const rows = getDb()
+    .prepare("SELECT payload_json FROM cached_products ORDER BY id")
+    .all() as Array<{ payload_json: string }>;
+  return rows.map(row => JSON.parse(row.payload_json) as ProductRecord);
 }
 
-export function enqueueSale(sale: Omit<PendingSaleRow, "status" | "attempts" | "lastError" | "nextAttemptAt">) {
+export function enqueueSale(
+  sale: Omit<
+    PendingSaleRow,
+    "status" | "attempts" | "lastError" | "nextAttemptAt"
+  >
+) {
   const database = getDb();
-  const existing = database.prepare("SELECT client_sale_id, status FROM pending_sales WHERE client_sale_id = ?").get(sale.clientSaleId) as
+  const existing = database
+    .prepare(
+      "SELECT client_sale_id, status FROM pending_sales WHERE client_sale_id = ?"
+    )
+    .get(sale.clientSaleId) as
     | { client_sale_id: string; status: string }
     | undefined;
   if (existing) return;
@@ -109,7 +131,7 @@ export function enqueueSale(sale: Omit<PendingSaleRow, "status" | "attempts" | "
     .prepare(
       `INSERT INTO pending_sales
       (client_sale_id, device_id, created_at, payment_method, notes, items_json, status, attempts, last_error, next_attempt_at, updated_at)
-      VALUES (@client_sale_id, @device_id, @created_at, @payment_method, @notes, @items_json, 'pending', 0, NULL, NULL, @updated_at)`,
+      VALUES (@client_sale_id, @device_id, @created_at, @payment_method, @notes, @items_json, 'pending', 0, NULL, NULL, @updated_at)`
     )
     .run({
       client_sale_id: sale.clientSaleId,
@@ -125,13 +147,17 @@ export function enqueueSale(sale: Omit<PendingSaleRow, "status" | "attempts" | "
 
 export function listPendingSales(): PendingSaleRow[] {
   const rows = getDb()
-    .prepare("SELECT * FROM pending_sales WHERE status = 'pending' ORDER BY created_at ASC")
+    .prepare(
+      "SELECT * FROM pending_sales WHERE status = 'pending' ORDER BY created_at ASC"
+    )
     .all() as Array<Record<string, unknown>>;
   return rows.map(mapPendingRow);
 }
 
 export function countPendingSales() {
-  const row = getDb().prepare("SELECT COUNT(*) AS c FROM pending_sales WHERE status = 'pending'").get() as { c: number };
+  const row = getDb()
+    .prepare("SELECT COUNT(*) AS c FROM pending_sales WHERE status = 'pending'")
+    .get() as { c: number };
   return Number(row.c) || 0;
 }
 
@@ -140,18 +166,26 @@ export function markSaleSynced(clientSaleId: string, detail = "synced") {
     .prepare(
       `UPDATE pending_sales
        SET status = 'synced', last_error = NULL, next_attempt_at = NULL, updated_at = @updated_at
-       WHERE client_sale_id = @client_sale_id`,
+       WHERE client_sale_id = @client_sale_id`
     )
-    .run({ client_sale_id: clientSaleId, updated_at: new Date().toISOString() });
+    .run({
+      client_sale_id: clientSaleId,
+      updated_at: new Date().toISOString(),
+    });
   appendSyncLog(clientSaleId, "synced", detail);
 }
 
-export function markSaleAttemptFailed(clientSaleId: string, error: string, nextAttemptAt: string, attempts: number) {
+export function markSaleAttemptFailed(
+  clientSaleId: string,
+  error: string,
+  nextAttemptAt: string,
+  attempts: number
+) {
   getDb()
     .prepare(
       `UPDATE pending_sales
        SET attempts = @attempts, last_error = @last_error, next_attempt_at = @next_attempt_at, updated_at = @updated_at
-       WHERE client_sale_id = @client_sale_id`,
+       WHERE client_sale_id = @client_sale_id`
     )
     .run({
       client_sale_id: clientSaleId,
@@ -163,9 +197,15 @@ export function markSaleAttemptFailed(clientSaleId: string, error: string, nextA
   appendSyncLog(clientSaleId, "retry_scheduled", error.slice(0, 500));
 }
 
-export function appendSyncLog(clientSaleId: string | null, event: string, detail?: string) {
+export function appendSyncLog(
+  clientSaleId: string | null,
+  event: string,
+  detail?: string
+) {
   getDb()
-    .prepare("INSERT INTO sync_log (client_sale_id, event, detail, created_at) VALUES (?, ?, ?, ?)")
+    .prepare(
+      "INSERT INTO sync_log (client_sale_id, event, detail, created_at) VALUES (?, ?, ?, ?)"
+    )
     .run(clientSaleId, event, detail ?? null, new Date().toISOString());
 }
 

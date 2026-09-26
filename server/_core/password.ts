@@ -9,4 +9,3 @@ export async function hashPassword(password: string, cost = DEFAULT_COST) {
 export async function verifyPassword(password: string, passwordHash: string) {
   return bcrypt.compare(password, passwordHash);
 }
-
