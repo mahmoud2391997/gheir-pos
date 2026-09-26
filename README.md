@@ -66,4 +66,40 @@ Artifacts are written to `release/`.
 - **JWT secret**: `JWT_SECRET` must be set (sessions won’t sign/verify without it).
 - **Cookies**: defaults to `COOKIE_SAMESITE=lax`. If you embed the app in an iframe or need cross-site cookies, set `COOKIE_SAMESITE=none` and serve over HTTPS.
 - **Code signing / notarization**: required for smooth Windows/macOS distribution; this repo does not include certificates.
-- **Auto-update**: not configured yet (add `electron-updater` / release hosting if needed).
+
+## Auto-update (Electron)
+
+This app uses `electron-updater` in **packaged** builds to check GitHub Releases for updates.
+
+- **Enabled by default** in packaged builds
+- **Disable** by setting `DISABLE_AUTO_UPDATE=1`
+
+### Publish requirements
+
+- Builds must be published as **GitHub Releases** for the repo.
+- The update feed is configured for the GitHub provider (see `electron-builder.yml`).
+
+## Code signing / notarization (Electron)
+
+This repo includes notarization scaffolding for macOS builds via `scripts/notarize.cjs` (it only runs when required env vars exist).
+
+### macOS (Apple notarization)
+
+Required (outside this repo):
+- Apple Developer Program membership
+- Signing certificate installed on the build machine
+
+Environment variables for CI:
+- `CSC_LINK` / `CSC_KEY_PASSWORD` (certificate)
+- `APPLE_ID`
+- `APPLE_APP_SPECIFIC_PASSWORD`
+- `APPLE_TEAM_ID`
+
+### Windows (Authenticode)
+
+Required (outside this repo):
+- Authenticode code signing certificate
+
+Environment variables (commonly used by electron-builder):
+- `CSC_LINK` / `CSC_KEY_PASSWORD`
+

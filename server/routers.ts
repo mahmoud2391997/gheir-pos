@@ -4,6 +4,11 @@ import { TRPCError } from "@trpc/server";
 import type { User } from "../drizzle/schema";
 import { getSessionCookieOptions } from "./_core/cookies";
 import {
+  assertLoginAllowed,
+  clearLoginFailures,
+  recordLoginFailure,
+} from "./_core/loginRateLimit";
+import {
   adminProcedure,
   protectedProcedure,
   publicProcedure,
@@ -48,8 +53,18 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         const username = input.username.trim().toLowerCase();
+
+        const lock = assertLoginAllowed(ctx.req, username);
+        if (lock && lock.allowed === false) {
+          throw new TRPCError({
+            code: "TOO_MANY_REQUESTS",
+            message: "Too many login attempts. Please try again shortly.",
+          });
+        }
+
         const user = await getUserByUsername(username);
         if (!user || !user.passwordHash) {
+          recordLoginFailure(ctx.req, username);
           throw new TRPCError({
             code: "UNAUTHORIZED",
             message: UNAUTHED_ERR_MSG,
@@ -58,11 +73,14 @@ export const appRouter = router({
 
         const ok = await verifyPassword(input.password, user.passwordHash);
         if (!ok) {
+          recordLoginFailure(ctx.req, username);
           throw new TRPCError({
             code: "UNAUTHORIZED",
             message: UNAUTHED_ERR_MSG,
           });
         }
+
+        clearLoginFailures(ctx.req, username);
 
         const maxAgeMs = input.rememberMe ? ONE_YEAR_MS : SESSION_MAX_AGE_MS;
         const cookieOptions = getSessionCookieOptions(ctx.req);

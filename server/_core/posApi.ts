@@ -39,7 +39,11 @@ export function registerPosRoutes(app: Express) {
   app.get("/api/pos/products", async (req, res) => {
     if (!requirePosKey(req, res)) return;
 
-    const { products, asOf, version } = await db.listPosProducts();
+    const sinceRaw = typeof req.query.since === "string" ? req.query.since : undefined;
+    const since = sinceRaw ? z.string().datetime().safeParse(sinceRaw) : null;
+    const { products, asOf, version } = await db.listPosProducts({
+      since: since?.success ? since.data : undefined,
+    });
     const etag = etagOf({ version, asOf, count: products.length });
 
     if (req.header("if-none-match") === etag) {

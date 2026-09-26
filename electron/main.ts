@@ -1,8 +1,12 @@
 import fs from "node:fs";
+import { createServer, type Server as HttpServer } from "node:http";
 import path from "node:path";
 import { config as loadEnv } from "dotenv";
 import { app, BrowserWindow, ipcMain, session, shell } from "electron";
+import { autoUpdater } from "electron-updater";
+import express from "express";
 import { COOKIE_NAME } from "../shared/const";
+import { createApp as createApiApp } from "../server/_core/app";
 import { countPendingSales, getDb } from "./inventory/db";
 import {
   enqueueSaleFromRenderer,
@@ -21,6 +25,33 @@ declare const __dirname: string;
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
+let localServer: HttpServer | null = null;
+let localServerUrl: string | null = null;
+
+function setupAutoUpdate() {
+  if (isDev) return;
+  if (process.env.DISABLE_AUTO_UPDATE === "1") return;
+
+  autoUpdater.on("error", error => writeMainLog("auto_update_error", error));
+  autoUpdater.on("checking-for-update", () =>
+    writeMainLog("auto_update_checking", "checking")
+  );
+  autoUpdater.on("update-available", info =>
+    writeMainLog("auto_update_available", info)
+  );
+  autoUpdater.on("update-not-available", info =>
+    writeMainLog("auto_update_not_available", info)
+  );
+  autoUpdater.on("update-downloaded", info =>
+    writeMainLog("auto_update_downloaded", info)
+  );
+
+  try {
+    void autoUpdater.checkForUpdatesAndNotify();
+  } catch (error) {
+    writeMainLog("auto_update_start_failed", error);
+  }
+}
 
 function writeMainLog(event: string, detail: unknown) {
   try {
@@ -148,8 +179,10 @@ async function createWindow() {
     await mainWindow.loadURL(devUrl);
     mainWindow.webContents.openDevTools({ mode: "detach" });
   } else {
-    const indexHtml = path.join(__dirname, "../dist/public/index.html");
-    await mainWindow.loadFile(indexHtml);
+    if (!localServerUrl) {
+      throw new Error("Local server URL not available");
+    }
+    await mainWindow.loadURL(localServerUrl);
   }
 
   mainWindow.on("closed", () => {
@@ -157,10 +190,39 @@ async function createWindow() {
   });
 }
 
+async function startLocalServerIfNeeded() {
+  if (isDev) return;
+  if (localServerUrl) return;
+
+  const apiApp = createApiApp();
+
+  const staticDir = path.join(__dirname, "../dist/public");
+  apiApp.use(express.static(staticDir));
+  apiApp.use("*", (_req, res) => {
+    res.sendFile(path.join(staticDir, "index.html"));
+  });
+
+  localServer = createServer(apiApp);
+
+  await new Promise<void>((resolve, reject) => {
+    localServer!.listen(0, "127.0.0.1", () => resolve());
+    localServer!.on("error", reject);
+  });
+
+  const addr = localServer.address();
+  if (!addr || typeof addr === "string") {
+    throw new Error("Unable to determine local server port");
+  }
+  localServerUrl = `http://127.0.0.1:${addr.port}`;
+  writeMainLog("local_server_started", localServerUrl);
+}
+
 app.whenReady().then(async () => {
   registerIpc();
   startSyncWorker();
+  await startLocalServerIfNeeded();
   await createWindow();
+  setupAutoUpdate();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
   });
@@ -179,5 +241,9 @@ app.on("render-process-gone", (_event, details) => {
 
 app.on("window-all-closed", () => {
   stopSyncWorker();
+  try {
+    localServer?.close();
+    localServer = null;
+  } catch {}
   if (process.platform !== "darwin") app.quit();
 });
