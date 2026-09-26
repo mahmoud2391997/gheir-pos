@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { config as loadEnv } from "dotenv";
 import { app, BrowserWindow, ipcMain, session, shell } from "electron";
@@ -13,6 +14,23 @@ declare const __dirname: string;
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
+
+function writeMainLog(event: string, detail: unknown) {
+  try {
+    const dir = path.join(app.getPath("userData"), "logs");
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "main.log");
+    const payload =
+      typeof detail === "string"
+        ? detail
+        : detail instanceof Error
+          ? `${detail.name}: ${detail.message}\n${detail.stack ?? ""}`
+          : JSON.stringify(detail);
+    fs.appendFileSync(file, `[${new Date().toISOString()}] ${event} ${payload}\n`, "utf8");
+  } catch {
+    // ignore logging failures
+  }
+}
 
 function registerIpc() {
   ipcMain.handle("inventory:isConfigured", () => secretsConfigured());
@@ -82,6 +100,13 @@ app.whenReady().then(async () => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
   });
+});
+
+process.on("uncaughtException", (error) => writeMainLog("uncaughtException", error));
+process.on("unhandledRejection", (reason) => writeMainLog("unhandledRejection", reason));
+
+app.on("render-process-gone", (_event, details) => {
+  writeMainLog("render-process-gone", details);
 });
 
 app.on("window-all-closed", () => {
