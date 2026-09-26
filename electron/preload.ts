@@ -34,3 +34,9 @@ const inventory = {
 };
 
 contextBridge.exposeInMainWorld("gheirInventory", inventory);
+
+const auth = {
+  clearSession: () => ipcRenderer.invoke("auth:clearSession") as Promise<{ cleared: number }>,
+};
+
+contextBridge.exposeInMainWorld("gheirAuth", auth);

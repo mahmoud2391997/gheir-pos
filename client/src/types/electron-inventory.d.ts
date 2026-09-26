@@ -10,9 +10,14 @@ export type GheirInventoryBridge = {
   getStatus?: () => Promise<PosStatus>;
 };
 
+export type GheirAuthBridge = {
+  clearSession: () => Promise<{ cleared: number }>;
+};
+
 declare global {
   interface Window {
     gheirInventory?: GheirInventoryBridge;
+    gheirAuth?: GheirAuthBridge;
   }
 }
 
