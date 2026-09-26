@@ -4,8 +4,11 @@
 
 # Build outputs
 dist/
+dist-electron/
+release/
 build/
 *.dist
+api/_bundled-app.mjs
 
 # Environment variables
 .env

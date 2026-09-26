@@ -1,10 +1,56 @@
+function envFlag(name: string) {
+  const raw = String(process.env[name] ?? "").toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes";
+}
+
 export const ENV = {
-  appId: process.env.VITE_APP_ID ?? "",
-  cookieSecret: process.env.JWT_SECRET ?? "",
-  databaseUrl: process.env.DATABASE_URL ?? "",
-  oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
-  ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
-  isProduction: process.env.NODE_ENV === "production",
-  forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
-  forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+  /** Known demo credentials, without requiring a database. */
+  get demoMode() {
+    return envFlag("DEMO_MODE");
+  },
+  /**
+   * This deployment has no POS register attached.
+   * Shows a Demo login button and still accepts normal accounts when a database is configured.
+   */
+  get noDevice() {
+    return envFlag("NO_DEVICE");
+  },
+  /** Demo credentials are always available for the standalone POS preview. */
+  get demoLoginEnabled() {
+    return true;
+  },
+  get appId() {
+    return process.env.VITE_APP_ID ?? "";
+  },
+  get cookieSecret() {
+    return process.env.JWT_SECRET ?? "";
+  },
+  get cookieSameSite() {
+    return (process.env.COOKIE_SAMESITE ?? "").toLowerCase() as
+      | ""
+      | "lax"
+      | "none"
+      | "strict";
+  },
+  get databaseUrl() {
+    return process.env.DATABASE_URL ?? "";
+  },
+  get oAuthServerUrl() {
+    return process.env.OAUTH_SERVER_URL ?? "";
+  },
+  get ownerOpenId() {
+    return process.env.OWNER_OPEN_ID ?? "";
+  },
+  get isProduction() {
+    return process.env.NODE_ENV === "production";
+  },
+  get forgeApiUrl() {
+    return process.env.BUILT_IN_FORGE_API_URL ?? "";
+  },
+  get forgeApiKey() {
+    return process.env.BUILT_IN_FORGE_API_KEY ?? "";
+  },
+  get posApiKey() {
+    return process.env.POS_API_KEY ?? process.env.VITE_POS_API_KEY ?? "";
+  },
 };

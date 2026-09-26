@@ -15,6 +15,13 @@
       "when": 1789056185595,
       "tag": "0001_overrated_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1790410457134,
+      "tag": "0002_heavy_victor_mancha",
+      "breakpoints": true
     }
   ]
 }

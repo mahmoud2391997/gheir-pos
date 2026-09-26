@@ -1,4 +1,3 @@
-import { startLogin } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
@@ -9,10 +8,6 @@ type UseAuthOptions = {
 };
 
 export function useAuth(options?: UseAuthOptions) {
-  // Login is started via startLogin() in the effect below, only when we actually
-  // navigate — never during render. startLogin() mints a one-time nonce + writes
-  // the state cookie, so calling it per render would overwrite the cookie and
-  // desync it from an in-flight login's `state`.
   const { redirectOnUnauthenticated = false, redirectPath } = options ?? {};
   const utils = trpc.useUtils();
 
@@ -21,11 +16,25 @@ export function useAuth(options?: UseAuthOptions) {
     refetchOnWindowFocus: false,
   });
 
+  const loginMutation = trpc.auth.login.useMutation({
+    onSuccess: async () => {
+      await utils.auth.me.invalidate();
+    },
+  });
+
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
       utils.auth.me.setData(undefined, null);
     },
   });
+
+  const login = useCallback(
+    async (input: Parameters<typeof loginMutation.mutateAsync>[0]) => {
+      await loginMutation.mutateAsync(input);
+      return await utils.auth.me.fetch();
+    },
+    [loginMutation, utils.auth.me]
+  );
 
   const logout = useCallback(async () => {
     try {
@@ -39,14 +48,13 @@ export function useAuth(options?: UseAuthOptions) {
       }
       throw error;
     } finally {
-      // Clear the Preview auto-login token mirrored into sessionStorage, so
-      // header-based sessions (Safari ITP / WebView) are logged out too. The
-      // backend cookie is cleared by the logout mutation.
-      try {
-        sessionStorage.removeItem("manus-cookie");
-      } catch {}
       utils.auth.me.setData(undefined, null);
       await utils.auth.me.invalidate();
+      try {
+        await window.gheirAuth?.clearSession?.();
+      } catch {
+        // ignore Electron bridge failures
+      }
     }
   }, [logoutMutation, utils]);
 
@@ -57,16 +65,22 @@ export function useAuth(options?: UseAuthOptions) {
     );
     return {
       user: meQuery.data ?? null,
-      loading: meQuery.isLoading || logoutMutation.isPending,
-      error: meQuery.error ?? logoutMutation.error ?? null,
+      loading:
+        meQuery.isLoading ||
+        logoutMutation.isPending ||
+        loginMutation.isPending,
+      error:
+        meQuery.error ?? logoutMutation.error ?? loginMutation.error ?? null,
       isAuthenticated: Boolean(meQuery.data),
     };
   }, [
     meQuery.data,
     meQuery.error,
     meQuery.isLoading,
+    loginMutation.error,
     logoutMutation.error,
     logoutMutation.isPending,
+    loginMutation.isPending,
   ]);
 
   useEffect(() => {
@@ -76,12 +90,7 @@ export function useAuth(options?: UseAuthOptions) {
     if (typeof window === "undefined") return;
     if (redirectPath && window.location.pathname === redirectPath) return;
 
-    // Navigate at this moment only. startLogin() mints the nonce + cookie itself.
-    if (redirectPath) {
-      window.location.href = redirectPath;
-    } else {
-      startLogin();
-    }
+    window.location.href = redirectPath || "/login";
   }, [
     redirectOnUnauthenticated,
     redirectPath,
@@ -93,6 +102,7 @@ export function useAuth(options?: UseAuthOptions) {
   return {
     ...state,
     refresh: () => meQuery.refetch(),
+    login,
     logout,
   };
 }

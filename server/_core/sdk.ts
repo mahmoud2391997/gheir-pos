@@ -1,5 +1,10 @@
-import { AXIOS_TIMEOUT_MS, COOKIE_NAME, ONE_YEAR_MS, decodeOAuthState } from "@shared/const";
-import { ForbiddenError } from "@shared/_core/errors";
+import {
+  AXIOS_TIMEOUT_MS,
+  COOKIE_NAME,
+  ONE_YEAR_MS,
+  decodeOAuthState,
+} from "../../shared/const";
+import { ForbiddenError } from "../../shared/_core/errors";
 import axios, { type AxiosInstance } from "axios";
 import { parse as parseCookieHeader } from "cookie";
 import type { Request } from "express";
@@ -29,14 +34,7 @@ const GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
 const GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
 
 class OAuthService {
-  constructor(private client: ReturnType<typeof axios.create>) {
-    console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
-    if (!ENV.oAuthServerUrl) {
-      console.error(
-        "[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable."
-      );
-    }
-  }
+  constructor(private client: AxiosInstance) {}
 
   private decodeState(state: string): string {
     return decodeOAuthState(state).redirectUri;
@@ -82,12 +80,24 @@ const createOAuthHttpClient = (): AxiosInstance =>
   });
 
 class SDKServer {
-  private readonly client: AxiosInstance;
-  private readonly oauthService: OAuthService;
+  private oauthClient: AxiosInstance | null = null;
+  private oauthService: OAuthService | null = null;
 
-  constructor(client: AxiosInstance = createOAuthHttpClient()) {
-    this.client = client;
-    this.oauthService = new OAuthService(this.client);
+  private getOAuthClient() {
+    if (!ENV.oAuthServerUrl) {
+      throw new Error("OAUTH_SERVER_URL is not configured");
+    }
+    if (!this.oauthClient) {
+      this.oauthClient = createOAuthHttpClient();
+    }
+    return this.oauthClient;
+  }
+
+  private getOAuthService() {
+    if (!this.oauthService) {
+      this.oauthService = new OAuthService(this.getOAuthClient());
+    }
+    return this.oauthService;
   }
 
   private deriveLoginMethod(
@@ -121,7 +131,7 @@ class SDKServer {
     code: string,
     state: string
   ): Promise<ExchangeTokenResponse> {
-    return this.oauthService.getTokenByCode(code, state);
+    return this.getOAuthService().getTokenByCode(code, state);
   }
 
   /**
@@ -130,7 +140,7 @@ class SDKServer {
    * const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
    */
   async getUserInfo(accessToken: string): Promise<GetUserInfoResponse> {
-    const data = await this.oauthService.getUserInfoByToken({
+    const data = await this.getOAuthService().getUserInfoByToken({
       accessToken,
     } as ExchangeTokenResponse);
     const loginMethod = this.deriveLoginMethod(
@@ -155,6 +165,9 @@ class SDKServer {
 
   private getSessionSecret() {
     const secret = ENV.cookieSecret;
+    if (!secret) {
+      throw new Error("JWT_SECRET is required to sign/verify sessions");
+    }
     return new TextEncoder().encode(secret);
   }
 
@@ -211,19 +224,15 @@ class SDKServer {
       });
       const { openId, appId, name } = payload as Record<string, unknown>;
 
-      if (
-        !isNonEmptyString(openId) ||
-        !isNonEmptyString(appId) ||
-        !isNonEmptyString(name)
-      ) {
+      if (!isNonEmptyString(openId)) {
         console.warn("[Auth] Session payload missing required fields");
         return null;
       }
 
       return {
         openId,
-        appId,
-        name,
+        appId: typeof appId === "string" ? appId : "",
+        name: typeof name === "string" ? name : "",
       };
     } catch (error) {
       console.warn("[Auth] Session verification failed", String(error));
@@ -239,10 +248,11 @@ class SDKServer {
       projectId: ENV.appId,
     };
 
-    const { data } = await this.client.post<GetUserInfoWithJwtResponse>(
-      GET_USER_INFO_WITH_JWT_PATH,
-      payload
-    );
+    const { data } =
+      await this.getOAuthClient().post<GetUserInfoWithJwtResponse>(
+        GET_USER_INFO_WITH_JWT_PATH,
+        payload
+      );
 
     const loginMethod = this.deriveLoginMethod(
       (data as any)?.platforms,
@@ -276,6 +286,24 @@ class SDKServer {
       throw ForbiddenError("Invalid session cookie");
     }
 
+    if (ENV.demoLoginEnabled && session.openId.startsWith("demo:")) {
+      const now = new Date();
+      const username = session.openId.slice("demo:".length) || "admin";
+      return {
+        id: -1,
+        openId: session.openId,
+        name: session.name || "Demo Admin",
+        email: null,
+        username,
+        loginMethod: "demo",
+        passwordHash: null,
+        role: "admin",
+        createdAt: now,
+        updatedAt: now,
+        lastSignedIn: now,
+      } as AuthenticatedUser;
+    }
+
     if (session.openId.startsWith(CRON_OPEN_ID_PREFIX)) {
       const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
       const taskUid = userInfo.taskUid ?? null;
@@ -291,6 +319,9 @@ class SDKServer {
 
     // If user not in DB, sync from OAuth server automatically
     if (!user) {
+      if (!ENV.oAuthServerUrl) {
+        throw ForbiddenError("User not found");
+      }
       try {
         const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
         await db.upsertUser({

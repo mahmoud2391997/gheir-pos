@@ -69,10 +69,7 @@
       "indexes": {
         "inventory_units_product_status_idx": {
           "name": "inventory_units_product_status_idx",
-          "columns": [
-            "productId",
-            "status"
-          ],
+          "columns": ["productId", "status"],
           "isUnique": false
         }
       },
@@ -80,17 +77,13 @@
       "compositePrimaryKeys": {
         "inventory_units_id": {
           "name": "inventory_units_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "inventory_units_sku_unique": {
           "name": "inventory_units_sku_unique",
-          "columns": [
-            "sku"
-          ]
+          "columns": ["sku"]
         }
       },
       "checkConstraint": {}
@@ -155,10 +148,7 @@
       "indexes": {
         "product_variants_product_color_idx": {
           "name": "product_variants_product_color_idx",
-          "columns": [
-            "productId",
-            "colorCode"
-          ],
+          "columns": ["productId", "colorCode"],
           "isUnique": true
         }
       },
@@ -166,9 +156,7 @@
       "compositePrimaryKeys": {
         "product_variants_id": {
           "name": "product_variants_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -248,9 +236,7 @@
       "indexes": {
         "products_baseSku_idx": {
           "name": "products_baseSku_idx",
-          "columns": [
-            "baseSku"
-          ],
+          "columns": ["baseSku"],
           "isUnique": false
         }
       },
@@ -258,9 +244,7 @@
       "compositePrimaryKeys": {
         "products_id": {
           "name": "products_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -331,9 +315,7 @@
       "compositePrimaryKeys": {
         "sale_items_id": {
           "name": "sale_items_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -418,9 +400,7 @@
       "indexes": {
         "sales_createdAt_idx": {
           "name": "sales_createdAt_idx",
-          "columns": [
-            "createdAt"
-          ],
+          "columns": ["createdAt"],
           "isUnique": false
         }
       },
@@ -428,17 +408,13 @@
       "compositePrimaryKeys": {
         "sales_id": {
           "name": "sales_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "sales_receiptNumber_unique": {
           "name": "sales_receiptNumber_unique",
-          "columns": [
-            "receiptNumber"
-          ]
+          "columns": ["receiptNumber"]
         }
       },
       "checkConstraint": {}
@@ -497,9 +473,7 @@
       "compositePrimaryKeys": {
         "sku_print_jobs_id": {
           "name": "sku_print_jobs_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -582,17 +556,13 @@
       "compositePrimaryKeys": {
         "users_id": {
           "name": "users_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "users_openId_unique": {
           "name": "users_openId_unique",
-          "columns": [
-            "openId"
-          ]
+          "columns": ["openId"]
         }
       },
       "checkConstraint": {}
