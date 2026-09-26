@@ -15,6 +15,20 @@ Copy `.env.example` to `.env` and set at least:
 - `DATABASE_URL`
 - `JWT_SECRET`
 
+### Demo mode (no DB, for previews)
+
+If you want the app to run **without** `DATABASE_URL` (e.g. demo deployments), set:
+
+```bash
+DEMO_MODE=1
+```
+
+Then log in with:
+
+- `admin / AdminPass123!` (also accepts `demo / demo`)
+
+Do **not** enable demo mode for real production data.
+
 ### 3) Run DB migrations
 
 ```bash
