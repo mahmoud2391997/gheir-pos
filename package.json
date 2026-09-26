@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
+  "main": "electron/main.cjs",
   "engines": {
     "node": "22.x"
   },
@@ -13,7 +14,9 @@
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
-    "db:push": "drizzle-kit generate && drizzle-kit migrate"
+    "db:push": "echo \"Database connection is commented out until the website launches.\" && exit 0",
+    "desktop": "electron electron/main.cjs",
+    "desktop:build": "ELECTRON_BUILD=1 vite build"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
@@ -94,6 +97,7 @@
     "add": "^2.0.6",
     "autoprefixer": "^10.4.20",
     "drizzle-kit": "^0.31.4",
+    "electron": "^44.4.5",
     "esbuild": "^0.25.0",
     "pnpm": "^10.15.1",
     "postcss": "^8.4.47",

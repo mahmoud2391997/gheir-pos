@@ -6,11 +6,16 @@ import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try { _db = drizzle(process.env.DATABASE_URL); } catch (error) { console.warn("[Database] Failed to connect:", error); _db = null; }
-  }
-  return _db;
+// The live database connection stays commented out until the website is ready to launch.
+// The web app is a demo and reads its data from localStorage.
+// The Electron desktop app saves that same data in a local file on the computer.
+// The Drizzle schema remains in drizzle/schema.ts for the future connection.
+export async function getDb(): Promise<ReturnType<typeof drizzle> | null> {
+  // if (!_db && process.env.DATABASE_URL) {
+  //   try { _db = drizzle(process.env.DATABASE_URL); } catch (error) { console.warn("[Database] Failed to connect:", error); _db = null; }
+  // }
+  // return _db;
+  return null;
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {

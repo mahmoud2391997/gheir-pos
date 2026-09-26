@@ -1,13 +1,24 @@
 export type UserRole = "admin" | "cashier";
 export type PaymentMethod = "cash" | "card" | "instapay";
-export type AppSection = "register" | "orders" | "catalog" | "sku" | "reports";
+export type AppSection = "register" | "orders" | "catalog" | "sku" | "reports" | "settings";
 
 export type ProductRecord = { id: number; name: string; arabicName?: string | null; englishName?: string | null; category: string; categoryAr?: string | null; baseSku: string; price: number; stock: number; color: string; colorArabic?: string | null; colorCode: string; shape: string; barcode?: string; active?: boolean };
 export type SaleRecord = { id: number; receiptNumber: string; total: number; discount: number; tax: number; tendered?: number | null; change?: number | null; paymentMethod: PaymentMethod; items: Array<{ name: string; arabicName?: string | null; quantity: number; total: number }>; createdAt: string };
 export type DashboardSummary = { todaySales: number; completedSales: number; averageOrder: number; lowStockItems: number };
 export type SkuRow = { sku: string; name: string; arabicName?: string | null; color: string; colorArabic?: string | null; price: number };
 
-export const appBrand = { name: "GHEIR", descriptor: "Handcrafted design studio", green: "#2f3e34", parchment: "#f2ead8", brown: "#5c4033" };
+export const appBrand = { name: "GHEIR", descriptor: "Handcrafted design studio", descriptorAr: "استوديو تصميم حرفي", green: "#2f3e34", parchment: "#f2ead8", brown: "#5c4033" };
+export function bilingualText(primary?: string | null, secondary?: string | null) {
+  const first = safeTrim(String(primary ?? ""));
+  const second = safeTrim(String(secondary ?? ""));
+  if (!first) return second;
+  if (!second || second === first) return first;
+  return `${first} · ${second}`;
+}
+export function bilingualPayment(method: PaymentMethod) {
+  const arabic: Record<PaymentMethod, string> = { cash: "نقداً", card: "بطاقة", instapay: "إنستاباي" };
+  return bilingualText(paymentLabels[method], arabic[method]);
+}
 export const categories = ["All", "Tableware", "Decor", "Serving", "Accessories"] as const;
 export const paymentLabels: Record<PaymentMethod, string> = { cash: "Cash", card: "Card", instapay: "InstaPay" };
 export const paymentDetails: Record<PaymentMethod, string> = { cash: "Collected at counter", card: "Terminal payment", instapay: "QR transfer" };
@@ -17,6 +28,7 @@ export const appSections: Array<{ id: AppSection; label: string; arabicLabel: st
   { id: "catalog", label: "Catalog", arabicLabel: "المنتجات", caption: "Products & stock", arabicCaption: "المنتجات والمخزون" },
   { id: "sku", label: "SKU Lab", arabicLabel: "معمل الأكواد", caption: "Export product labels", arabicCaption: "تصدير ملصقات المنتجات" },
   { id: "reports", label: "Reports", arabicLabel: "التقارير", caption: "Sales and stock", arabicCaption: "المبيعات والمخزون" },
+  { id: "settings", label: "System settings", arabicLabel: "إعدادات النظام", caption: "Store and receipt defaults", arabicCaption: "إعدادات المتجر والإيصال" },
 ];
 
 export const demoProducts: ProductRecord[] = [
@@ -42,9 +54,9 @@ export const demoProducts: ProductRecord[] = [
   { id: 20, name: "Linea Cuff", arabicName: "سوار لينيا", category: "Accessories", categoryAr: "إكسسوارات", baseSku: "CUFF", price: 1860, stock: 2, color: "Noir", colorArabic: "أسود", colorCode: "NOIR", shape: "round" },
 ];
 export const demoSales: SaleRecord[] = [
-  { id: 1, receiptNumber: "GH-20260910-0042", total: 3116, discount: 0, tax: 0, paymentMethod: "card", items: [{ name: "Sculpted Vessel", quantity: 1, total: 1850 }, { name: "Arc Candleholder", quantity: 1, total: 940 }], createdAt: "2026-09-10T15:28:00.000Z" },
-  { id: 2, receiptNumber: "GH-20260910-0041", total: 1436, discount: 0, tax: 0, paymentMethod: "cash", items: [{ name: "Linen Tray", quantity: 1, total: 1260 }], createdAt: "2026-09-10T13:05:00.000Z" },
-  { id: 3, receiptNumber: "GH-20260910-0040", total: 620, discount: 0, tax: 0, paymentMethod: "instapay", items: [{ name: "Stacked Tumbler", quantity: 1, total: 620 }], createdAt: "2026-09-10T11:42:00.000Z" },
+  { id: 1, receiptNumber: "GH-20260910-0042", total: 3116, discount: 0, tax: 0, paymentMethod: "card", items: [{ name: "Sculpted Vessel", arabicName: "إناء منحوت", quantity: 1, total: 1850 }, { name: "Arc Candleholder", arabicName: "حامل شموع آرك", quantity: 1, total: 940 }], createdAt: "2026-09-10T15:28:00.000Z" },
+  { id: 2, receiptNumber: "GH-20260910-0041", total: 1436, discount: 0, tax: 0, paymentMethod: "cash", items: [{ name: "Linen Tray", arabicName: "صينية كتان", quantity: 1, total: 1260 }], createdAt: "2026-09-10T13:05:00.000Z" },
+  { id: 3, receiptNumber: "GH-20260910-0040", total: 620, discount: 0, tax: 0, paymentMethod: "instapay", items: [{ name: "Stacked Tumbler", arabicName: "كوب متداخل", quantity: 1, total: 620 }], createdAt: "2026-09-10T11:42:00.000Z" },
 ];
 export const demoDashboard: DashboardSummary = { todaySales: 12640, completedSales: 18, averageOrder: 702, lowStockItems: 2 };
 export const dashboardBars = [{ day: "Mon", value: 4600 }, { day: "Tue", value: 7100 }, { day: "Wed", value: 5200 }, { day: "Thu", value: 8400 }, { day: "Fri", value: 6300 }, { day: "Sat", value: 10200 }, { day: "Sun", value: 12640 }];
@@ -58,7 +70,48 @@ export const appVersion = "v0.1 / register preview";
 export const appFooter = "GHEIR / 2026 · Store register";
 export const scannerMode = "keyboard wedge";
 export const printerPaper = "80mm thermal";
-export const architectureCopy = "Node.js + tRPC + Drizzle now; Electron desktop shell next.";
+export type SystemSettings = { storeName: string; storeAddress: string; taxPercent: number; receiptFooter: string; printerPaper: string };
+export const defaultSystemSettings: SystemSettings = { storeName, storeAddress, taxPercent: 14, receiptFooter: "Thank you for choosing GHEIR. · شكراً لاختياركم غيّر.", printerPaper };
+export const systemSettingsKey = "gheir-system-settings";
+export function normalizeSystemSettings(raw: Partial<SystemSettings> | null | undefined): SystemSettings {
+  const taxPercent = Number(raw?.taxPercent);
+  return {
+    storeName: safeTrim(String(raw?.storeName || "")) || defaultSystemSettings.storeName,
+    storeAddress: safeTrim(String(raw?.storeAddress || "")) || defaultSystemSettings.storeAddress,
+    taxPercent: Number.isFinite(taxPercent) && taxPercent >= 0 ? taxPercent : defaultSystemSettings.taxPercent,
+    receiptFooter: (() => { const footer = safeTrim(String(raw?.receiptFooter || "")); return !footer || footer === "Thank you for choosing GHEIR." ? defaultSystemSettings.receiptFooter : footer; })(),
+    printerPaper: safeTrim(String(raw?.printerPaper || "")) || defaultSystemSettings.printerPaper,
+  };
+}
+export function readSystemSettings(): SystemSettings {
+  if (typeof localStorage === "undefined") return defaultSystemSettings;
+  try { return normalizeSystemSettings(JSON.parse(localStorage.getItem(systemSettingsKey) || "null") as Partial<SystemSettings> | null); } catch { return defaultSystemSettings; }
+}
+type DesktopBridge = { readStore: () => Promise<Record<string, string>>; writeKey: (key: string, value: string | null) => Promise<boolean> };
+function desktopBridge(): DesktopBridge | null {
+  if (typeof window === "undefined") return null;
+  return (window as Window & { gheirDesktop?: DesktopBridge }).gheirDesktop ?? null;
+}
+export function rememberLocal(key: string, value: string | null) {
+  try {
+    if (value == null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {}
+  const bridge = desktopBridge();
+  if (bridge) void bridge.writeKey(key, value).catch(() => {});
+}
+export async function hydrateDesktopStore() {
+  const bridge = desktopBridge();
+  if (!bridge) return;
+  try {
+    const stored = await bridge.readStore();
+    for (const [key, value] of Object.entries(stored)) {
+      if (typeof value === "string") localStorage.setItem(key, value);
+    }
+  } catch {}
+}
+export function persistSystemSettings(settings: SystemSettings) { rememberLocal(systemSettingsKey, JSON.stringify(settings)); }
+export const architectureCopy = "Web demo keeps data in this browser. The Electron desktop app saves it on this computer. The database connection stays commented until launch.";
 export const browserHardwareNote = "Browser preview uses keyboard-wedge scanning and the system print dialog.";
 export const electronHardwareNote = "Electron can replace these adapters with native scanner and thermal-printer bridges without changing the POS screens.";
 export const checkoutNote = "Discounts and taxes are entered manually at the counter.";
@@ -67,6 +120,51 @@ export const printFlowCopy = "CSV export is ready for a SKU printer; receipt pri
 export const scannerFlowCopy = "Scan a full unique SKU to resolve the exact physical copy at checkout.";
 export const roleCopy: Record<UserRole, { label: string; detail: string }> = { cashier: { label: "Cashier", detail: "Register + orders" }, admin: { label: "Admin", detail: "Full store controls" } };
 export const demoUsers = [{ name: "Mariam Adel", role: "cashier" as UserRole, status: "On register" }, { name: "Omar Nassar", role: "admin" as UserRole, status: "Full access" }];
+export type LocalSession = { username: string; name: string; role: UserRole };
+export type LocalAccount = LocalSession & { password: string };
+export const localSessionKey = "gheir-local-session";
+export const localAccountsKey = "gheir-local-accounts";
+export const defaultLocalAccounts: LocalAccount[] = [
+  { username: "mariam", password: "cashier", name: "Mariam Adel", role: "cashier" },
+  { username: "omar", password: "admin", name: "Omar Nassar", role: "admin" },
+];
+export const localAccounts = defaultLocalAccounts;
+function cleanAccount(value: unknown, role: UserRole): LocalAccount | null {
+  if (!value || typeof value !== "object") return null;
+  const account = value as Partial<LocalAccount>;
+  const username = safeTrim(String(account.username || "")).toLowerCase();
+  const password = String(account.password || "");
+  const name = safeTrim(String(account.name || ""));
+  if (!username || !password.trim() || !name || account.role !== role) return null;
+  return { username, password, name, role };
+}
+export function normalizeLocalAccounts(raw: unknown): LocalAccount[] | null {
+  if (!Array.isArray(raw)) return null;
+  const cashier = raw.map((item) => cleanAccount(item, "cashier")).find((item): item is LocalAccount => Boolean(item));
+  const admin = raw.map((item) => cleanAccount(item, "admin")).find((item): item is LocalAccount => Boolean(item));
+  if (!cashier || !admin || cashier.username === admin.username) return null;
+  return [cashier, admin];
+}
+export function readLocalAccounts(): LocalAccount[] {
+  if (typeof localStorage === "undefined") return defaultLocalAccounts;
+  try { return normalizeLocalAccounts(JSON.parse(localStorage.getItem(localAccountsKey) || "null")) ?? defaultLocalAccounts; } catch { return defaultLocalAccounts; }
+}
+export function persistLocalAccounts(accounts: LocalAccount[]) { const next = normalizeLocalAccounts(accounts) ?? defaultLocalAccounts; rememberLocal(localAccountsKey, JSON.stringify(next)); return next; }
+export function authenticateLocal(username: string, password: string, accounts = readLocalAccounts()): LocalSession | null {
+  const account = accounts.find((item) => item.username.toLowerCase() === username.trim().toLowerCase() && item.password === password);
+  if (!account) return null;
+  return { username: account.username, name: account.name, role: account.role };
+}
+export function readLocalSession(): LocalSession | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const raw = JSON.parse(localStorage.getItem(localSessionKey) || "null") as LocalSession | null;
+    if (!raw?.name || !raw.username || (raw.role !== "cashier" && raw.role !== "admin")) return null;
+    return { username: raw.username, name: raw.name, role: raw.role };
+  } catch { return null; }
+}
+export function persistLocalSession(session: LocalSession) { rememberLocal(localSessionKey, JSON.stringify(session)); }
+export function clearLocalSession() { rememberLocal(localSessionKey, null); }
 export const hardwareNotes = [{ title: "Scanner ready", detail: "USB / Bluetooth keyboard-wedge scanners work out of the box." }, { title: "Printer ready", detail: "Receipts use the browser print bridge today; Electron can map to thermal printers next." }, { title: "Electron path", detail: "The UI stays web-first with a clean hardware adapter seam for desktop packaging." }];
 export const keyboardShortcuts = [{ key: "F2", action: "Focus scanner" }, { key: "F4", action: "Open payment" }, { key: "⌘ / Ctrl + P", action: "Print receipt" }] as const;
 export const skuExampleRows: SkuRow[] = [{ sku: "VASE-CLAY-0007", name: "Sculpted Vessel", color: "Clay", price: 1850 }, { sku: "VASE-CLAY-0008", name: "Sculpted Vessel", color: "Clay", price: 1850 }, { sku: "VASE-MOSS-0001", name: "Sculpted Vessel", color: "Moss", price: 1850 }];
@@ -83,7 +181,7 @@ export const emptyOrdersCopy = "Completed sales will settle here after the first
 export const emptySkuCopy = "Add products to the catalog first, then select them here to export their existing SKUs.";
 export const emptyCatalogCopy = "Product families and their physical copies will appear here.";
 export const footerMeta = `2026.09 · ${printerPaper} · ${scannerMode}`;
-export const rolePermissions = { cashier: ["register", "orders"], admin: ["register", "orders", "catalog", "sku", "reports"] } as const;
+export const rolePermissions = { cashier: ["register", "orders"], admin: ["register", "orders", "catalog", "sku", "reports", "settings"] } as const;
 export const appName = "GHEIR POS";
 export const currency = "EGP";
 export const taxRate = demoTaxRate;
@@ -98,11 +196,21 @@ export function createProductSku(baseSku: string, colorCode: string, serial: num
 export function createGeneratedProductSku(name: string, color: string, serial: number) { return createProductSku(generateFamilyCode(name), generateColorCode(color), serial); }
 export function createGeneratedBarcode(name: string, color: string, serial: number) { return makeBarcodeText(createGeneratedProductSku(name, color, serial)); }
 export function generateSkuRows(input: { baseSku: string; colorCode: string; copies: number; nextSerial: number }, name: string, color: string, price: number, arabicName?: string | null, colorArabic?: string | null): SkuRow[] { return Array.from({ length: Math.max(0, input.copies) }, (_, index) => ({ sku: createProductSku(input.baseSku, input.colorCode, input.nextSerial + index), name, arabicName: arabicName ?? null, color, colorArabic: colorArabic ?? null, price })); }
-export function skuLabelCsv(rows: SkuRow[]) { const header = "SKU,Product English,Product Arabic,Color English,Color Arabic,Price"; const lines = rows.map((row) => [row.sku, row.name, row.arabicName ?? "", row.color, row.colorArabic ?? "", row.price.toFixed(2)].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")); return [header, ...lines].join("\n"); }
+export function skuLabelCsv(rows: SkuRow[]) { const header = ["SKU", bilingualText("Product English", "المنتج بالإنجليزية"), bilingualText("Product Arabic", "المنتج بالعربية"), bilingualText("Color English", "اللون بالإنجليزية"), bilingualText("Color Arabic", "اللون بالعربية"), bilingualText("Price", "السعر")].join(","); const lines = rows.map((row) => [row.sku, row.name, row.arabicName ?? "", row.color, row.colorArabic ?? "", row.price.toFixed(2)].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")); return [header, ...lines].join("\n"); }
 export function downloadCsv(filename: string, csv: string) { if (typeof window === "undefined") return; const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 100); }
-export function productCsv(products: ProductRecord[]) { const header = "Name,Arabic Name,Category,Arabic Category,Price,Stock,Color,Color Arabic,Color Code,Base SKU,Barcode,Shape"; const lines = products.map((product) => [product.name, product.arabicName ?? "", product.category, product.categoryAr ?? "", product.price, product.stock, product.color, product.colorArabic ?? "", product.colorCode, product.baseSku, product.barcode ?? "", product.shape].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")); return [header, ...lines].join("\n"); }
-export function productCsvTemplate() { return "Name,Arabic Name,Category,Arabic Category,Price,Stock,Color,Color Arabic,Color Code,Base SKU,Barcode,Shape\nStoneware cup,كوب فخاري,Tableware,أطباق,1200,5,Clay,طين,CLAY,CUP,,round"; }
-export function parseProductCsv(csv: string): ProductRecord[] { const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/).filter(Boolean); if (lines.length < 2) return []; const parse = (line: string) => line.match(/(?:^|,)\s*(?:"((?:[^"]|"")*)"|([^,]*))/g)?.map((part) => part.replace(/^,?\s*/, "").replace(/^"|"$/g, "").replaceAll('""', '"').trim()) ?? []; const header = parse(lines[0]).map((value) => value.trim().toLowerCase()); const isHeader = header.some((value) => ["name", "arabic name", "category", "price", "stock", "color"].includes(value)); const col = (labels: string[]) => { const index = labels.map((label) => header.indexOf(label)).find((candidate) => candidate !== -1); return index ?? -1; }; const nameAt = isHeader ? col(["name"]) : 0; const arabicAt = isHeader ? col(["arabic name"]) : 1; const categoryAt = isHeader ? col(["category"]) : 2; const categoryArAt = isHeader ? col(["arabic category"]) : -1; const priceAt = isHeader ? col(["price"]) : 3; const stockAt = isHeader ? col(["stock"]) : 4; const colorAt = isHeader ? col(["color"]) : 5; const colorArAt = isHeader ? col(["color arabic"]) : -1; const colorCodeAt = isHeader ? col(["color code"]) : 6; const baseSkuAt = isHeader ? col(["base sku"]) : 7; const barcodeAt = isHeader ? col(["barcode"]) : 8; const shapeAt = isHeader ? col(["shape"]) : 9; const at = (values: string[], index: number) => index >= 0 && index < values.length ? safeTrim(values[index]) : ""; return lines.slice(isHeader ? 1 : 0).map((line, index) => { const values = parse(line); const name = at(values, nameAt); const color = at(values, colorAt) || "Natural"; if (!name) return null; return normalizeProduct({ id: Date.now() + index, name, arabicName: at(values, arabicAt) || null, category: at(values, categoryAt) || "Uncategorized", categoryAr: at(values, categoryArAt) || null, price: Number(at(values, priceAt)) || 0, stock: Number(at(values, stockAt)) || 0, color, colorArabic: at(values, colorArAt) || null, colorCode: at(values, colorCodeAt) || generateColorCode(color), baseSku: at(values, baseSkuAt) || generateFamilyCode(name), barcode: at(values, barcodeAt) || createGeneratedProductSku(name, color, 1).replaceAll("-", ""), shape: at(values, shapeAt) || "round" }); }).filter((product): product is ProductRecord => Boolean(product)); }
+export function productCsv(products: ProductRecord[]) { const header = [bilingualText("Name", "الاسم"), bilingualText("Arabic Name", "الاسم العربي"), bilingualText("Category", "الفئة"), bilingualText("Arabic Category", "الفئة بالعربية"), bilingualText("Price", "السعر"), bilingualText("Stock", "المخزون"), bilingualText("Color", "اللون"), bilingualText("Color Arabic", "اللون بالعربية"), bilingualText("Color Code", "رمز اللون"), bilingualText("Base SKU", "كود العائلة"), bilingualText("Barcode", "الباركود"), bilingualText("Shape", "الشكل")].join(","); const lines = products.map((product) => [product.name, product.arabicName ?? "", product.category, product.categoryAr ?? "", product.price, product.stock, product.color, product.colorArabic ?? "", product.colorCode, product.baseSku, product.barcode ?? "", product.shape].map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")); return [header, ...lines].join("\n"); }
+export function productCsvTemplate() { return productCsv([{ id: 0, name: "Stoneware cup", arabicName: "كوب فخاري", category: "Tableware", categoryAr: "أطباق", price: 1200, stock: 5, color: "Clay", colorArabic: "طين", colorCode: "CLAY", baseSku: "CUP", shape: "round" }]); }
+export type LocalDatabase = { version: 1; exportedAt: string; products: ProductRecord[]; sales: SaleRecord[]; settings: SystemSettings; language: "en" | "ar"; accounts?: LocalAccount[] };
+function csvCell(value: string | number) { return `"${String(value).replaceAll('"', '""')}"`; }
+function isStoredProduct(value: unknown): value is ProductRecord { if (!value || typeof value !== "object") return false; const product = value as ProductRecord; return Number.isFinite(Number(product.id)) && typeof product.name === "string" && product.name.trim().length > 0 && typeof product.category === "string"; }
+function isStoredSale(value: unknown): value is SaleRecord { if (!value || typeof value !== "object") return false; const sale = value as SaleRecord; return Number.isFinite(Number(sale.id)) && typeof sale.receiptNumber === "string" && Number.isFinite(Number(sale.total)) && isPaymentMethod(String(sale.paymentMethod)) && Array.isArray(sale.items); }
+export function createLocalDatabase(input: { products: ProductRecord[]; sales: SaleRecord[]; settings: SystemSettings; language: "en" | "ar"; accounts?: LocalAccount[] }): LocalDatabase { return { version: 1, exportedAt: new Date().toISOString(), products: input.products, sales: input.sales, settings: normalizeSystemSettings(input.settings), language: input.language === "ar" ? "ar" : "en", accounts: normalizeLocalAccounts(input.accounts) ?? defaultLocalAccounts }; }
+export function parseLocalDatabase(raw: string): LocalDatabase | null { try { const data = JSON.parse(raw) as Partial<LocalDatabase>; if (data.version !== 1 || !Array.isArray(data.products) || !Array.isArray(data.sales) || !data.products.every(isStoredProduct) || !data.sales.every(isStoredSale)) return null; return { version: 1, exportedAt: typeof data.exportedAt === "string" ? data.exportedAt : new Date().toISOString(), products: data.products.map((product) => normalizeProduct({ ...product, id: Number(product.id), name: product.name })), sales: data.sales.map((sale) => ({ ...sale, id: Number(sale.id), total: Number(sale.total), discount: Number(sale.discount ?? 0), tax: Number(sale.tax ?? 0), items: sale.items.map((item) => ({ name: String(item.name || ""), arabicName: item.arabicName ?? null, quantity: Number(item.quantity) || 0, total: Number(item.total) || 0 })) })), settings: normalizeSystemSettings(data.settings), language: data.language === "ar" ? "ar" : "en", accounts: normalizeLocalAccounts(data.accounts) ?? undefined }; } catch { return null; } }
+export function salesCsv(sales: SaleRecord[]) { const header = [bilingualText("Receipt", "الإيصال"), bilingualText("Date", "التاريخ"), bilingualText("Payment", "الدفع"), bilingualText("Discount", "الخصم"), bilingualText("Tax", "الضريبة"), bilingualText("Tendered", "المبلغ المستلم"), bilingualText("Change", "الباقي"), bilingualText("Total", "الإجمالي"), bilingualText("Items", "الأصناف")].join(","); const lines = sales.map((sale) => [sale.receiptNumber, sale.createdAt, bilingualPayment(sale.paymentMethod), sale.discount ?? 0, sale.tax ?? 0, sale.tendered ?? "", sale.change ?? "", sale.total, sale.items.map((item) => `${item.quantity}x ${bilingualText(item.name, item.arabicName)}`).join("; ")].map(csvCell).join(",")); return [header, ...lines].join("\n"); }
+export function downloadJson(filename: string, value: unknown) { if (typeof window === "undefined") return; const blob = new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 100); }
+export function ordersDocumentHtml(sales: SaleRecord[], storeName: string) { const escapeHtml = (value: string | number) => String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); const rows = sales.map((sale, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(sale.receiptNumber)}</td><td>${escapeHtml(formatDate(sale.createdAt))} ${escapeHtml(formatTime(sale.createdAt))}</td><td>${escapeHtml(bilingualPayment(sale.paymentMethod))}</td><td>${escapeHtml(sale.items.map((item) => `${item.quantity} × ${bilingualText(item.name, item.arabicName)}`).join(", "))}</td><td>${escapeHtml(formatMoney(sale.total))}</td></tr>`).join(""); const heading = bilingualText("orders", "الطلبات"); return `<!DOCTYPE html><html><head><title>${escapeHtml(storeName)} ${escapeHtml(heading)}</title><style>@page{size:A4 portrait;margin:14mm}body{font-family:Arial,sans-serif;color:#2b2b2b}h1{margin:0;color:#2f3e34;font-size:24px}p{color:#5c4033;margin:6px 0 18px}table{width:100%;border-collapse:collapse;font-size:11px}th{background:#2f3e34;color:#f2ead8;text-align:left;padding:9px}td{border-bottom:1px solid #d9c7a3;padding:9px;vertical-align:top}tr:nth-child(even){background:#f7f0e3}</style></head><body><h1>${escapeHtml(storeName)} — ${escapeHtml(heading)}</h1><p>${escapeHtml(bilingualText(appBrand.descriptor, appBrand.descriptorAr))}</p><p>${sales.length} ${escapeHtml(bilingualText("orders", "طلبات"))} · ${escapeHtml(new Date().toLocaleDateString())}</p><table><thead><tr><th>#</th><th>${escapeHtml(bilingualText("Receipt", "الإيصال"))}</th><th>${escapeHtml(bilingualText("Date", "التاريخ"))}</th><th>${escapeHtml(bilingualText("Payment", "الدفع"))}</th><th>${escapeHtml(bilingualText("Items", "الأصناف"))}</th><th>${escapeHtml(bilingualText("Total", "الإجمالي"))}</th></tr></thead><tbody>${rows}</tbody></table></body></html>`; }
+export function receiptsDocumentHtml(sales: SaleRecord[], logoUri: string | undefined, settings: Pick<SystemSettings, "storeName" | "storeAddress" | "receiptFooter">) { const pages = sales.map((sale) => `<section class="page">${buildReceiptMarkup(sale, logoUri, settings)}</section>`).join(""); return `<!DOCTYPE html><html><head><title>${settings.storeName} receipts</title><style>@page{margin:12mm}.page{break-after:page}body{font-family:'Courier New',Courier,monospace;color:#111}.receipt{width:302px;margin:0 auto 24px;font-size:12px;text-align:center}.logo{display:block;width:auto;max-width:140px;max-height:42px;margin:0 auto 6px}h1{font-family:Georgia,serif;letter-spacing:.14em;font-size:22px;margin:6px 0 2px}p{font-size:11px;color:#333;margin:4px 0}hr{border:none;border-top:1px dashed #999;margin:10px 0}table{width:100%;border-collapse:collapse;text-align:left}td{padding:4px 0;font-size:12px;vertical-align:top}.total{font-weight:700;font-size:15px;margin-top:10px;text-align:left}.foot{font-size:11px;text-align:center}</style></head><body>${pages || "<p>No orders.</p>"}</body></html>`; }
+export function parseProductCsv(csv: string): ProductRecord[] { const lines = csv.replace(/^\uFEFF/, "").split(/\r?\n/).filter(Boolean); if (lines.length < 2) return []; const parse = (line: string) => line.match(/(?:^|,)\s*(?:"((?:[^"]|"")*)"|([^,]*))/g)?.map((part) => part.replace(/^,?\s*/, "").replace(/^"|"$/g, "").replaceAll('""', '"').trim()) ?? []; const header = parse(lines[0]).map((value) => value.trim().toLowerCase()); const isHeader = header.some((value) => ["name", "arabic name", "category", "price", "stock", "color"].some((label) => value === label || value.startsWith(`${label} ·`))); const col = (labels: string[]) => header.findIndex((value) => labels.some((label) => value === label || value.startsWith(`${label} ·`))); const nameAt = isHeader ? col(["name"]) : 0; const arabicAt = isHeader ? col(["arabic name"]) : 1; const categoryAt = isHeader ? col(["category"]) : 2; const categoryArAt = isHeader ? col(["arabic category"]) : -1; const priceAt = isHeader ? col(["price"]) : 3; const stockAt = isHeader ? col(["stock"]) : 4; const colorAt = isHeader ? col(["color"]) : 5; const colorArAt = isHeader ? col(["color arabic"]) : -1; const colorCodeAt = isHeader ? col(["color code"]) : 6; const baseSkuAt = isHeader ? col(["base sku"]) : 7; const barcodeAt = isHeader ? col(["barcode"]) : 8; const shapeAt = isHeader ? col(["shape"]) : 9; const at = (values: string[], index: number) => index >= 0 && index < values.length ? safeTrim(values[index]) : ""; return lines.slice(isHeader ? 1 : 0).map((line, index) => { const values = parse(line); const name = at(values, nameAt); const color = at(values, colorAt) || "Natural"; if (!name) return null; return normalizeProduct({ id: Date.now() + index, name, arabicName: at(values, arabicAt) || null, category: at(values, categoryAt) || "Uncategorized", categoryAr: at(values, categoryArAt) || null, price: Number(at(values, priceAt)) || 0, stock: Number(at(values, stockAt)) || 0, color, colorArabic: at(values, colorArAt) || null, colorCode: at(values, colorCodeAt) || generateColorCode(color), baseSku: at(values, baseSkuAt) || generateFamilyCode(name), barcode: at(values, barcodeAt) || createGeneratedProductSku(name, color, 1).replaceAll("-", ""), shape: at(values, shapeAt) || "round" }); }).filter((product): product is ProductRecord => Boolean(product)); }
 export function formatMoney(value: number, locale = "en-EG") { return new Intl.NumberFormat(locale, { style: "currency", currency: "EGP", maximumFractionDigits: 0 }).format(value || 0); }
 export function formatDate(value: string | Date, locale = "en") { return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", year: "numeric" }).format(new Date(value)); }
 export function formatTime(value: string | Date, locale = "en") { return new Intl.DateTimeFormat(locale, { hour: "numeric", minute: "2-digit" }).format(new Date(value)); }
@@ -113,21 +221,21 @@ export function stockTone(stock: number) { return stock <= 3 ? "danger" as const
 export function productSearchText(product: ProductRecord) { return `${product.name} ${product.arabicName ?? ""} ${product.category} ${product.categoryAr ?? ""} ${product.color} ${product.colorArabic ?? ""} ${product.baseSku} ${product.colorCode}`.toLowerCase(); }
 export function summarizeCart(cart: Array<{ product: ProductRecord; quantity: number }>) { const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0); const tax = Math.round(subtotal * demoTaxRate); return { subtotal, tax, total: subtotal + tax }; }
 export function createDemoSale(cart: Array<{ product: ProductRecord; quantity: number }>, paymentMethod: PaymentMethod, adjustments?: { discount?: number; tax?: number; tendered?: number }): SaleRecord { const items = cart.map(({ product, quantity }) => ({ name: product.name, arabicName: product.arabicName ?? null, quantity, total: product.price * quantity })); const subtotal = items.reduce((sum, item) => sum + item.total, 0); const discount = Math.max(0, adjustments?.discount ?? 0); const tax = Math.max(0, adjustments?.tax ?? 0); const total = Math.max(0, subtotal - discount + tax); const tendered = adjustments?.tendered != null ? Math.max(0, adjustments.tendered) : undefined; const change = tendered != null ? Math.max(0, tendered - total) : undefined; return { id: Date.now(), receiptNumber: `GH-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${String(Math.floor(Math.random() * 9999)).padStart(4, "0")}`, total, discount, tax, tendered, change, paymentMethod, items, createdAt: new Date().toISOString() }; }
-export function buildReceiptMarkup(sale: SaleRecord, logoUri?: string) { const logo = logoUri ? `<img class="logo" src="${logoUri}" alt="GHEIR" />` : ""; const discountRow = (sale.discount ?? 0) > 0 ? `<tr><td>DISCOUNT</td><td style="text-align:right">-${formatMoney(sale.discount ?? 0)}</td></tr>` : ""; const taxRow = (sale.tax ?? 0) > 0 ? `<tr><td>TAX</td><td style="text-align:right">${formatMoney(sale.tax ?? 0)}</td></tr>` : ""; const paidRow = sale.tendered != null ? `<div class="total">PAID <span style="float:right">${formatMoney(sale.tendered)}</span></div>` : ""; const changeRow = sale.change != null ? `<div class="total">CHANGE <span style="float:right">${formatMoney(sale.change)}</span></div>` : ""; return `<div class="receipt">${logo}<h1>GHEIR</h1><p>${sale.receiptNumber}<br/>${formatDate(sale.createdAt)} · ${formatTime(sale.createdAt)}</p><hr/><table>${sale.items.map((item) => `<tr><td>${item.quantity} × ${item.name}${item.arabicName ? `<br/><span style="font-weight:normal">${item.arabicName}</span>` : ""}</td><td style="text-align:right">${formatMoney(item.total)}</td></tr>`).join("")}${discountRow}${taxRow}</table><div class="total">TOTAL <span style="float:right">${formatMoney(sale.total)}</span></div>${paidRow}${changeRow}<hr/><p class="foot">Thank you for choosing GHEIR.</p></div>`; }
+export function buildReceiptMarkup(sale: SaleRecord, logoUri?: string, settings?: Pick<SystemSettings, "storeName" | "storeAddress" | "receiptFooter">) { const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); const heading = escapeHtml(settings?.storeName || "GHEIR"); const brandLine = escapeHtml(bilingualText(appBrand.descriptor, appBrand.descriptorAr)); const addressLine = settings?.storeAddress ? `<br/>${escapeHtml(settings.storeAddress)}` : ""; const footerLine = escapeHtml(settings?.receiptFooter || defaultSystemSettings.receiptFooter); const logo = logoUri ? `<img class="logo" src="${logoUri}" alt="${heading}" />` : ""; const moneyLabel = (en: string, ar: string) => escapeHtml(bilingualText(en, ar)); const discountRow = (sale.discount ?? 0) > 0 ? `<tr><td>${moneyLabel("DISCOUNT", "خصم")}</td><td style="text-align:right">-${formatMoney(sale.discount ?? 0)}</td></tr>` : ""; const taxRow = (sale.tax ?? 0) > 0 ? `<tr><td>${moneyLabel("TAX", "ضريبة")}</td><td style="text-align:right">${formatMoney(sale.tax ?? 0)}</td></tr>` : ""; const paidRow = sale.tendered != null ? `<div class="total">${moneyLabel("PAID", "المدفوع")} <span style="float:right">${formatMoney(sale.tendered)}</span></div>` : ""; const changeRow = sale.change != null ? `<div class="total">${moneyLabel("CHANGE", "الباقي")} <span style="float:right">${formatMoney(sale.change)}</span></div>` : ""; return `<div class="receipt">${logo}<h1>${heading}</h1><p>${brandLine}</p><p>${sale.receiptNumber}<br/>${formatDate(sale.createdAt)} · ${formatTime(sale.createdAt)}${addressLine}</p><hr/><table>${sale.items.map((item) => `<tr><td>${item.quantity} × ${escapeHtml(item.name)}${item.arabicName ? `<br/><span style="font-weight:normal" dir="rtl">${escapeHtml(item.arabicName)}</span>` : ""}</td><td style="text-align:right">${formatMoney(item.total)}</td></tr>`).join("")}${discountRow}${taxRow}</table><div class="total">${moneyLabel("TOTAL", "الإجمالي")} <span style="float:right">${formatMoney(sale.total)}</span></div>${paidRow}${changeRow}<hr/><p class="foot">${footerLine}</p><p class="foot">${escapeHtml(bilingualPayment(sale.paymentMethod))}</p></div>`; }
 export function openPrintWindow(title: string, html: string) { if (typeof window === "undefined") return; const printWindow = window.open("", "_blank", "width=440,height=700"); if (!printWindow) return; printWindow.document.write(`<!DOCTYPE html><html><head><title>${title}</title><style>@page{margin:0}*{box-sizing:border-box}body{font-family:'Courier New',Courier,monospace;width:302px;margin:0 auto;padding:16px 0;background:#fff;color:#111;font-size:12px}.receipt{text-align:center}.logo{display:block;width:auto;max-width:140px;max-height:42px;margin:0 auto 6px}.logo img{-o-object-fit:contain;object-fit:contain}h1{font-family:Georgia,serif;letter-spacing:.14em;font-size:22px;text-align:center;margin:6px 0 2px}p{font-size:11px;color:#333;text-align:center;margin:4px 0}hr{border:none;border-top:1px dashed #999;margin:10px 0}table{width:100%;border-collapse:collapse;text-align:left}td{padding:4px 0;font-size:12px;vertical-align:top}.total{font-weight:700;font-size:15px;margin-top:10px;text-align:left}.foot{font-size:11px;text-align:center}</style></head><body>${html}</body></html>`); printWindow.document.close(); printWindow.focus(); printWindow.print(); }
 export function roleCanAccess(role: UserRole, section: AppSection) { return role === "admin" || section === "register" || section === "orders"; }
-export function persistDemoSales(sales: SaleRecord[]) { try { localStorage.setItem("gheir-demo-sales", JSON.stringify(sales)); } catch {} }
+export function persistDemoSales(sales: SaleRecord[]) { rememberLocal("gheir-demo-sales", JSON.stringify(sales)); }
 export function readDemoSales() { try { return JSON.parse(localStorage.getItem("gheir-demo-sales") || "null") as SaleRecord[] || demoSales; } catch { return demoSales; } }
-export function persistDemoProducts(products: ProductRecord[]) { try { localStorage.setItem("gheir-demo-products", JSON.stringify(products)); } catch {} }
+export function persistDemoProducts(products: ProductRecord[]) { rememberLocal("gheir-demo-products", JSON.stringify(products)); }
 export function readDemoProducts() { try { return JSON.parse(localStorage.getItem("gheir-demo-products") || "null") as ProductRecord[] || demoProducts; } catch { return demoProducts; } }
-export function resetDemoData() { try { localStorage.removeItem("gheir-demo-products"); localStorage.removeItem("gheir-demo-sales"); } catch {} }
+export function resetDemoData() { rememberLocal("gheir-demo-products", null); rememberLocal("gheir-demo-sales", null); }
 export function createLabelRows(products: ProductRecord[], copiesPerProduct = 1) { return products.flatMap((product) => generateSkuRows({ baseSku: product.baseSku, colorCode: product.colorCode, copies: copiesPerProduct, nextSerial: 1 }, product.name, product.color, product.price, product.arabicName, product.colorArabic)); }
 export function toCsvFilename(prefix = "gheir-skus") { return `${prefix}-${new Date().toISOString().slice(0, 10)}.csv`; }
 export function getTodaySales(sales: SaleRecord[]) { return sales.reduce((sum, sale) => sum + sale.total, 0); }
 export function getAverageOrder(sales: SaleRecord[]) { return sales.length ? Math.round(getTodaySales(sales) / sales.length) : 0; }
 export function makeDashboard(sales: SaleRecord[], products: ProductRecord[]): DashboardSummary { return { todaySales: getTodaySales(sales), completedSales: sales.length, averageOrder: getAverageOrder(sales), lowStockItems: products.filter((product) => product.stock <= 3).length }; }
 export function getSectionTitle(section: AppSection) { return appSections.find((item) => item.id === section)?.label ?? "Register"; }
-export function sectionIsAdminOnly(section: AppSection) { return section === "catalog" || section === "sku" || section === "reports"; }
+export function sectionIsAdminOnly(section: AppSection) { return section === "catalog" || section === "sku" || section === "reports" || section === "settings"; }
 export function getRoleGreeting(role: UserRole) { return role === "admin" ? "Keep the shelf clear and the identity consistent." : "A calm counter for a considered purchase."; }
 export function safeTrim(value: string) { return value.trim().replace(/\s+/g, " "); }
 export function asPositiveInt(value: string, fallback = 1) { const number = Number.parseInt(value, 10); return Number.isFinite(number) && number > 0 ? number : fallback; }
