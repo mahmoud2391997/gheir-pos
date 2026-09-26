@@ -286,6 +286,24 @@ class SDKServer {
       throw ForbiddenError("Invalid session cookie");
     }
 
+    if (ENV.demoMode && session.openId.startsWith("demo:")) {
+      const now = new Date();
+      const username = session.openId.slice("demo:".length) || "admin";
+      return {
+        id: -1,
+        openId: session.openId,
+        name: session.name || "Demo Admin",
+        email: null,
+        username,
+        loginMethod: "demo",
+        passwordHash: null,
+        role: "admin",
+        createdAt: now,
+        updatedAt: now,
+        lastSignedIn: now,
+      } as AuthenticatedUser;
+    }
+
     if (session.openId.startsWith(CRON_OPEN_ID_PREFIX)) {
       const userInfo = await this.getUserInfoWithJwt(sessionToken ?? "");
       const taskUid = userInfo.taskUid ?? null;

@@ -1,3 +1,5 @@
+import crypto from "node:crypto";
+
 function isPlaceholder(value: string) {
   const v = value.trim().toLowerCase();
   if (!v) return false;
@@ -12,17 +14,33 @@ function isPlaceholder(value: string) {
 }
 
 export function validateServerEnv() {
+  const demoMode = ["1", "true", "yes"].includes(
+    String(process.env.DEMO_MODE ?? "").toLowerCase()
+  );
+
   const jwt = String(process.env.JWT_SECRET || "");
   if (!jwt || isPlaceholder(jwt) || jwt.length < 32) {
-    throw new Error(
-      "JWT_SECRET is required and must be a strong secret (>= 32 chars, not a placeholder)."
-    );
+    if (demoMode) {
+      const base =
+        String(process.env.VERCEL_URL || "").trim() ||
+        String(process.env.VERCEL_PROJECT_ID || "").trim() ||
+        "local-demo";
+      const derived = crypto
+        .createHash("sha256")
+        .update(`gheir-pos-demo:${base}`)
+        .digest("hex");
+      process.env.JWT_SECRET = derived;
+    } else {
+      throw new Error(
+        "JWT_SECRET is required and must be a strong secret (>= 32 chars, not a placeholder)."
+      );
+    }
   }
 
   const nodeEnv = String(process.env.NODE_ENV || "");
   const databaseUrl = String(process.env.DATABASE_URL || "");
-  if (nodeEnv === "production" && (!databaseUrl || isPlaceholder(databaseUrl))) {
-    throw new Error("DATABASE_URL is required in production.");
+  if (!demoMode && nodeEnv === "production" && (!databaseUrl || isPlaceholder(databaseUrl))) {
+    throw new Error("DATABASE_URL is required in production. (Set DEMO_MODE=1 to run without a DB for demos.)");
   }
 
   const cookieSameSite = String(process.env.COOKIE_SAMESITE || "").toLowerCase();
