@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { config as loadEnv } from "dotenv";
 import { app, BrowserWindow, ipcMain, session, shell } from "electron";
+import { autoUpdater } from "electron-updater";
 import { COOKIE_NAME } from "../shared/const";
 import { countPendingSales, getDb } from "./inventory/db";
 import {
@@ -21,6 +22,31 @@ declare const __dirname: string;
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
+
+function setupAutoUpdate() {
+  if (isDev) return;
+  if (process.env.DISABLE_AUTO_UPDATE === "1") return;
+
+  autoUpdater.on("error", error => writeMainLog("auto_update_error", error));
+  autoUpdater.on("checking-for-update", () =>
+    writeMainLog("auto_update_checking", "checking")
+  );
+  autoUpdater.on("update-available", info =>
+    writeMainLog("auto_update_available", info)
+  );
+  autoUpdater.on("update-not-available", info =>
+    writeMainLog("auto_update_not_available", info)
+  );
+  autoUpdater.on("update-downloaded", info =>
+    writeMainLog("auto_update_downloaded", info)
+  );
+
+  try {
+    void autoUpdater.checkForUpdatesAndNotify();
+  } catch (error) {
+    writeMainLog("auto_update_start_failed", error);
+  }
+}
 
 function writeMainLog(event: string, detail: unknown) {
   try {
@@ -161,6 +187,7 @@ app.whenReady().then(async () => {
   registerIpc();
   startSyncWorker();
   await createWindow();
+  setupAutoUpdate();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
   });

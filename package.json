@@ -67,6 +67,7 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.2",
     "drizzle-orm": "^0.44.5",
+    "electron-updater": "^6.6.2",
     "embla-carousel-react": "^8.6.0",
     "express": "^4.21.2",
     "framer-motion": "^12.23.22",
@@ -92,6 +93,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@electron/notarize": "^3.0.1",
     "@electron/rebuild": "^3.6.0",
     "@builder.io/vite-plugin-jsx-loc": "^0.1.1",
     "@tailwindcss/typography": "^0.5.15",
