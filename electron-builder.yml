@@ -26,7 +26,6 @@ afterSign: scripts/notarize.cjs
 linux:
   target:
     - AppImage
-    - deb
   category: Office
   icon: electron/assets/icon.png
 
