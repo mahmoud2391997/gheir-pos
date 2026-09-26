@@ -1,21 +1,10 @@
 import type { IncomingMessage, ServerResponse } from "http";
+import { createApp } from "../server/_core/app";
 
-type ExpressLikeHandler = (req: any, res: any) => void;
+const app = createApp();
 
-let appPromise: Promise<ExpressLikeHandler> | null = null;
-
-async function getApp(): Promise<ExpressLikeHandler> {
-  if (!appPromise) {
-    appPromise = import("../server/_core/app")
-      .then(mod => mod.createApp())
-      .then(app => app as unknown as ExpressLikeHandler);
-  }
-  return appPromise;
-}
-
-export default async function handler(req: IncomingMessage, res: ServerResponse) {
+export default function handler(req: IncomingMessage, res: ServerResponse) {
   try {
-    const app = await getApp();
     app(req, res);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
