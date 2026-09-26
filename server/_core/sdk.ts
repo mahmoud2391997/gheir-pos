@@ -286,7 +286,7 @@ class SDKServer {
       throw ForbiddenError("Invalid session cookie");
     }
 
-    if (ENV.demoMode && session.openId.startsWith("demo:")) {
+    if (ENV.demoLoginEnabled && session.openId.startsWith("demo:")) {
       const now = new Date();
       const username = session.openId.slice("demo:".length) || "admin";
       return {

@@ -31,6 +31,16 @@ import {
 
 const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 
+function isDemoCredential(username: string, password: string) {
+  if (username === "demo" && password === "demo") return true;
+  return (
+    username === "admin" &&
+    (password === "AdminPass123!" ||
+      password === "admin" ||
+      password === "demo")
+  );
+}
+
 function toPublicUser(user: User) {
   // Never leak password hashes to the client.
   const { passwordHash: _passwordHash, ...rest } = user as unknown as User & {
@@ -45,6 +55,10 @@ export const appRouter = router({
     me: publicProcedure.query(({ ctx }) =>
       ctx.user ? toPublicUser(ctx.user) : null
     ),
+    loginOptions: publicProcedure.query(() => ({
+      /** True when NO_DEVICE is set: no register is attached, so offer demo login. */
+      demoLogin: ENV.noDevice,
+    })),
     login: publicProcedure
       .input(
         z.object({
@@ -64,20 +78,48 @@ export const appRouter = router({
           });
         }
 
-        if (ENV.demoMode) {
-          const ok =
-            (username === "admin" &&
-              (input.password === "AdminPass123!" ||
-                input.password === "admin" ||
-                input.password === "demo")) ||
-            (username === "demo" && input.password === "demo");
-          if (!ok) {
-            recordLoginFailure(ctx.req, username);
-            throw new TRPCError({
-              code: "UNAUTHORIZED",
-              message: UNAUTHED_ERR_MSG,
-            });
+        const db = await getDb();
+        if (db) {
+          const user = await getUserByUsername(username);
+          if (user?.passwordHash) {
+            const ok = await verifyPassword(input.password, user.passwordHash);
+            if (ok) {
+              clearLoginFailures(ctx.req, username);
+
+              const maxAgeMs = input.rememberMe
+                ? ONE_YEAR_MS
+                : SESSION_MAX_AGE_MS;
+              const cookieOptions = getSessionCookieOptions(ctx.req);
+              const sessionToken = await sdk.createSessionToken(user.openId, {
+                name: user.name || user.username || "",
+                expiresInMs: maxAgeMs,
+              });
+
+              ctx.res.cookie(COOKIE_NAME, sessionToken, {
+                ...cookieOptions,
+                maxAge: maxAgeMs,
+              });
+
+              await upsertUser({
+                openId: user.openId,
+                lastSignedIn: new Date(),
+              });
+
+              return toPublicUser(user);
+            }
           }
+        } else if (!ENV.demoLoginEnabled) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message:
+              "Database not configured. Set DATABASE_URL, or set DEMO_MODE=1 or NO_DEVICE=1 for demo login.",
+          });
+        }
+
+        if (
+          ENV.demoLoginEnabled &&
+          isDemoCredential(username, input.password)
+        ) {
           clearLoginFailures(ctx.req, username);
 
           const maxAgeMs = input.rememberMe ? ONE_YEAR_MS : SESSION_MAX_AGE_MS;
@@ -108,50 +150,11 @@ export const appRouter = router({
           } as User);
         }
 
-        const db = await getDb();
-        if (!db) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message:
-              "Database not configured. Set DATABASE_URL, or set DEMO_MODE=1 for demo login.",
-          });
-        }
-
-        const user = await getUserByUsername(username);
-        if (!user || !user.passwordHash) {
-          recordLoginFailure(ctx.req, username);
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: UNAUTHED_ERR_MSG,
-          });
-        }
-
-        const ok = await verifyPassword(input.password, user.passwordHash);
-        if (!ok) {
-          recordLoginFailure(ctx.req, username);
-          throw new TRPCError({
-            code: "UNAUTHORIZED",
-            message: UNAUTHED_ERR_MSG,
-          });
-        }
-
-        clearLoginFailures(ctx.req, username);
-
-        const maxAgeMs = input.rememberMe ? ONE_YEAR_MS : SESSION_MAX_AGE_MS;
-        const cookieOptions = getSessionCookieOptions(ctx.req);
-        const sessionToken = await sdk.createSessionToken(user.openId, {
-          name: user.name || user.username || "",
-          expiresInMs: maxAgeMs,
+        recordLoginFailure(ctx.req, username);
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: UNAUTHED_ERR_MSG,
         });
-
-        ctx.res.cookie(COOKIE_NAME, sessionToken, {
-          ...cookieOptions,
-          maxAge: maxAgeMs,
-        });
-
-        await upsertUser({ openId: user.openId, lastSignedIn: new Date() });
-
-        return toPublicUser(user);
       }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);

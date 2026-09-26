@@ -1,7 +1,23 @@
+function envFlag(name: string) {
+  const raw = String(process.env[name] ?? "").toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes";
+}
+
 export const ENV = {
+  /** Known demo credentials, without requiring a database. */
   get demoMode() {
-    const raw = String(process.env.DEMO_MODE ?? "").toLowerCase();
-    return raw === "1" || raw === "true" || raw === "yes";
+    return envFlag("DEMO_MODE");
+  },
+  /**
+   * This deployment has no POS register attached.
+   * Shows a Demo login button and still accepts normal accounts when a database is configured.
+   */
+  get noDevice() {
+    return envFlag("NO_DEVICE");
+  },
+  /** Demo credentials are accepted when either demo mode or a device-less deployment is enabled. */
+  get demoLoginEnabled() {
+    return this.demoMode || this.noDevice;
   },
   get appId() {
     return process.env.VITE_APP_ID ?? "";

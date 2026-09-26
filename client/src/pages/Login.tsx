@@ -10,6 +10,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useMemo, useState } from "react";
@@ -25,10 +26,23 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+function loginErrorMessage(error: unknown) {
+  if (error instanceof TRPCClientError && error.data?.code === "UNAUTHORIZED") {
+    return "Invalid username or password.";
+  }
+  return error instanceof Error ? error.message : "Login failed.";
+}
+
 export default function Login() {
   const { user, loading, login } = useAuth();
   const [, setLocation] = useLocation();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [demoSubmitting, setDemoSubmitting] = useState(false);
+  const loginOptions = trpc.auth.loginOptions.useQuery(undefined, {
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const showDemoLogin = Boolean(loginOptions.data?.demoLogin);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -37,8 +51,8 @@ export default function Login() {
 
   const isSubmitting = form.formState.isSubmitting;
   const canSubmit = useMemo(
-    () => !loading && !isSubmitting,
-    [isSubmitting, loading]
+    () => !loading && !isSubmitting && !demoSubmitting,
+    [demoSubmitting, isSubmitting, loading]
   );
 
   useEffect(() => {
@@ -55,14 +69,20 @@ export default function Login() {
       });
       setLocation("/");
     } catch (error: unknown) {
-      if (
-        error instanceof TRPCClientError &&
-        error.data?.code === "UNAUTHORIZED"
-      ) {
-        setSubmitError("Invalid username or password.");
-        return;
-      }
-      setSubmitError(error instanceof Error ? error.message : "Login failed.");
+      setSubmitError(loginErrorMessage(error));
+    }
+  };
+
+  const onDemoLogin = async () => {
+    setSubmitError(null);
+    setDemoSubmitting(true);
+    try {
+      await login({ username: "demo", password: "demo", rememberMe: false });
+      setLocation("/");
+    } catch (error: unknown) {
+      setSubmitError(loginErrorMessage(error));
+    } finally {
+      setDemoSubmitting(false);
     }
   };
 
@@ -158,6 +178,25 @@ export default function Login() {
               >
                 {isSubmitting ? "Signing in…" : "Sign in"}
               </Button>
+
+              {showDemoLogin ? (
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center gap-3 text-[10px] uppercase tracking-[.16em] text-[#817664]">
+                    <span className="h-px flex-1 bg-[#cdbb9c]" />
+                    No register device
+                    <span className="h-px flex-1 bg-[#cdbb9c]" />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!canSubmit}
+                    onClick={onDemoLogin}
+                    className="h-11 w-full rounded-xl border-[#cdbb9c] bg-transparent text-[#2f3e34] hover:bg-[#efe4d0]"
+                  >
+                    {demoSubmitting ? "Signing in…" : "Demo login"}
+                  </Button>
+                </div>
+              ) : null}
             </form>
           </CardContent>
         </Card>

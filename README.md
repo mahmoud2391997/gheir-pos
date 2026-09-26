@@ -43,6 +43,12 @@ pnpm dev
 
 Then open `http://localhost:3000` and sign in at `/login`.
 
+### Demo login without a register
+
+Set `NO_DEVICE=1` when this deployment has no POS device. The login page shows a **Demo login** button (`demo` / `demo`) and the username/password form still signs in real accounts when `DATABASE_URL` is configured.
+
+`DEMO_MODE=1` accepts those same demo credentials without a database. Real accounts still sign in normally when a database is configured. The demo button is shown only when `NO_DEVICE=1`.
+
 ## Electron desktop
 
 ### Dev
@@ -108,4 +114,3 @@ Required (outside this repo):
 
 Environment variables (commonly used by electron-builder):
 - `CSC_LINK` / `CSC_KEY_PASSWORD`
-
