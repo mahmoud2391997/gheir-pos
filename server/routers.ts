@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { COOKIE_NAME, ONE_YEAR_MS, UNAUTHED_ERR_MSG } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS, UNAUTHED_ERR_MSG } from "../shared/const";
 import { TRPCError } from "@trpc/server";
 import type { User } from "../drizzle/schema";
 import { getSessionCookieOptions } from "./_core/cookies";
