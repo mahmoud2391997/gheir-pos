@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, inventoryUnits, productVariants, products, saleItems, sales, skuPrintJobs, users } from "../drizzle/schema";
 import { createProductSku, generateColorCode, generateFamilyCode } from "../shared/sku";
@@ -103,4 +103,137 @@ export async function createSkuPrintJob(requestedBy: number | null, rowCount: nu
   if (!db) return null;
   const result = await db.insert(skuPrintJobs).values({ requestedBy, rowCount, status: "exported" });
   return { id: Number(result[0].insertId), rowCount };
+}
+
+export type PosRemoteProduct = {
+  name: string;
+  slug: string;
+  sku?: string;
+  category: string;
+  price: number;
+  stock: number;
+  status?: string;
+  updatedAt?: string;
+};
+
+export async function getPosWatermark(): Promise<{ asOf: string | null; version: string | null }> {
+  const db = await getDb();
+  if (!db) return { asOf: null, version: null };
+
+  const [productMax] = await db.select({ updatedAt: sql<Date | null>`max(${products.updatedAt})` }).from(products);
+  const [saleMax] = await db.select({ createdAt: sql<Date | null>`max(${sales.createdAt})` }).from(sales);
+
+  const dates = [productMax?.updatedAt ?? null, saleMax?.createdAt ?? null].filter((d): d is Date => d instanceof Date);
+  const asOfDate = dates.length ? new Date(Math.max(...dates.map((d) => d.getTime()))) : null;
+  const asOf = asOfDate ? asOfDate.toISOString() : null;
+  return { asOf, version: asOf };
+}
+
+export async function listPosProducts(): Promise<{ products: PosRemoteProduct[]; asOf: string | null; version: string | null }> {
+  const db = await getDb();
+  if (!db) return { products: [], asOf: null, version: null };
+
+  const watermark = await getPosWatermark();
+
+  const rows = await db.select().from(products).where(eq(products.active, 1));
+  const stockRows = await db
+    .select({ productId: inventoryUnits.productId, count: sql<number>`count(*)` })
+    .from(inventoryUnits)
+    .where(eq(inventoryUnits.status, "available"))
+    .groupBy(inventoryUnits.productId);
+  const stockByProduct = new Map(stockRows.map((row) => [row.productId, Number(row.count)]));
+
+  const result: PosRemoteProduct[] = rows.map((p) => ({
+    name: p.name,
+    slug: p.baseSku,
+    sku: p.baseSku,
+    category: p.category,
+    price: Number(p.price),
+    stock: stockByProduct.get(p.id) ?? 0,
+    status: p.active ? "published" : "draft",
+    updatedAt: p.updatedAt instanceof Date ? p.updatedAt.toISOString() : undefined,
+  }));
+
+  return { products: result, asOf: watermark.asOf, version: watermark.version };
+}
+
+export async function createPosSale(input: {
+  receiptNumber: string;
+  paymentMethod: "cash" | "card" | "instapay";
+  items: Array<{ sku: string; quantity: number }>;
+}): Promise<{ deduped: boolean }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const existing = await db.select({ id: sales.id }).from(sales).where(eq(sales.receiptNumber, input.receiptNumber)).limit(1);
+  if (existing.length) return { deduped: true };
+
+  const skus = Array.from(new Set(input.items.map((it) => it.sku)));
+  const productRows = await db.select().from(products).where(inArray(products.baseSku, skus));
+  const bySku = new Map(productRows.map((p) => [p.baseSku, p]));
+  for (const sku of skus) {
+    if (!bySku.has(sku)) throw new Error(`Unknown SKU: ${sku}`);
+  }
+
+  const now = new Date();
+  const computedItems = input.items.map((it) => {
+    const p = bySku.get(it.sku)!;
+    const unitPrice = Number(p.price);
+    const lineTotal = unitPrice * it.quantity;
+    return {
+      productId: p.id,
+      nameSnapshot: p.name,
+      quantity: it.quantity,
+      unitPrice,
+      lineTotal,
+    };
+  });
+
+  const subtotal = computedItems.reduce((sum, it) => sum + it.lineTotal, 0);
+  const tax = 0;
+  const total = subtotal + tax;
+
+  const saleResult = await db.insert(sales).values({
+    receiptNumber: input.receiptNumber,
+    cashierId: null,
+    customerName: null,
+    subtotal: subtotal.toFixed(2),
+    tax: tax.toFixed(2),
+    total: total.toFixed(2),
+    paymentMethod: input.paymentMethod,
+    status: "completed",
+    createdAt: now,
+  } as any);
+
+  const saleId = Number((saleResult as any)[0]?.insertId ?? 0);
+
+  await db.insert(saleItems).values(
+    computedItems.map((it) => ({
+      saleId,
+      productId: it.productId,
+      inventoryUnitId: null,
+      nameSnapshot: it.nameSnapshot,
+      quantity: it.quantity,
+      unitPrice: it.unitPrice.toFixed(2),
+      lineTotal: it.lineTotal.toFixed(2),
+    })),
+  );
+
+  for (const it of input.items) {
+    const p = bySku.get(it.sku)!;
+    const unitIds = await db
+      .select({ id: inventoryUnits.id })
+      .from(inventoryUnits)
+      .where(and(eq(inventoryUnits.productId, p.id), eq(inventoryUnits.status, "available")))
+      .limit(it.quantity);
+
+    if (unitIds.length < it.quantity) {
+      throw new Error(`Insufficient stock for ${it.sku}`);
+    }
+
+    const ids = unitIds.map((row) => row.id);
+    await db.update(inventoryUnits).set({ status: "sold", soldAt: now }).where(inArray(inventoryUnits.id, ids));
+  }
+
+  return { deduped: false };
 }
