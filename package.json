@@ -18,7 +18,8 @@
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
     "user:create": "tsx scripts/create-user.ts",
     "electron:compile": "node scripts/compile-electron.mjs",
-    "electron:dev": "pnpm electron:compile && ELECTRON_START_URL=http://localhost:3000 electron .",
+    "electron:rebuild": "electron-rebuild -f -w better-sqlite3",
+    "electron:dev": "pnpm electron:compile && pnpm electron:rebuild && ELECTRON_START_URL=http://localhost:3000 electron .",
     "electron:build": "ELECTRON=1 vite build && pnpm electron:compile && electron-builder --config electron-builder.yml",
     "electron:pack": "pnpm electron:build --dir"
   },
@@ -91,6 +92,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.6.0",
     "@builder.io/vite-plugin-jsx-loc": "^0.1.1",
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.3",
