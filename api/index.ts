@@ -1,5 +1,4 @@
 import type { IncomingMessage, ServerResponse } from "http";
-import { createApp } from "../server/_core/app";
 
 type Handler = (req: any, res: any) => void;
 
@@ -21,7 +20,13 @@ async function resolveHandler(): Promise<Handler> {
         // Ignore and fall back to source version.
       }
 
-      resolved = createApp();
+      const mod = (await import("../server/_core/app")) as {
+        createApp?: () => Handler;
+      };
+      if (typeof mod.createApp !== "function") {
+        throw new Error("createApp export missing from server/_core/app");
+      }
+      resolved = mod.createApp();
       return resolved;
     })();
   }
