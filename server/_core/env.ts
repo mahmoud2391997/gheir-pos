@@ -15,11 +15,9 @@ export const ENV = {
   get noDevice() {
     return envFlag("NO_DEVICE");
   },
-  /** Demo credentials are accepted when either demo mode or a device-less deployment is enabled. */
+  /** Demo credentials are always available for the standalone POS preview. */
   get demoLoginEnabled() {
-    // Preview/dev deployments should remain usable even when no device or database
-    // variables have been configured yet. Production still requires an explicit flag.
-    return this.demoMode || this.noDevice || process.env.VERCEL === "1";
+    return true;
   },
   get appId() {
     return process.env.VITE_APP_ID ?? "";
