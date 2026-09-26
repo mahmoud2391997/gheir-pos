@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
+    "user:create": "tsx scripts/create-user.ts",
     "electron:compile": "node scripts/compile-electron.mjs",
     "electron:dev": "pnpm electron:compile && ELECTRON_START_URL=http://localhost:3000 electron .",
     "electron:build": "ELECTRON=1 vite build && pnpm electron:compile && electron-builder --config electron-builder.yml",
