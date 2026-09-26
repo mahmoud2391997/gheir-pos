@@ -306,12 +306,16 @@ export async function getPosWatermark(): Promise<{
   const [productMax] = await db
     .select({ updatedAt: sql<Date | null>`max(${products.updatedAt})` })
     .from(products);
+  const [unitMax] = await db
+    .select({ updatedAt: sql<Date | null>`max(${inventoryUnits.updatedAt})` })
+    .from(inventoryUnits);
   const [saleMax] = await db
     .select({ createdAt: sql<Date | null>`max(${sales.createdAt})` })
     .from(sales);
 
   const dates = [
     productMax?.updatedAt ?? null,
+    unitMax?.updatedAt ?? null,
     saleMax?.createdAt ?? null,
   ].filter((d): d is Date => d instanceof Date);
   const asOfDate = dates.length
@@ -321,7 +325,9 @@ export async function getPosWatermark(): Promise<{
   return { asOf, version: asOf };
 }
 
-export async function listPosProducts(): Promise<{
+export async function listPosProducts(options?: {
+  since?: string;
+}): Promise<{
   products: PosRemoteProduct[];
   asOf: string | null;
   version: string | null;
@@ -331,17 +337,66 @@ export async function listPosProducts(): Promise<{
 
   const watermark = await getPosWatermark();
 
-  const rows = await db.select().from(products).where(eq(products.active, 1));
+  const sinceDate =
+    options?.since && Number.isFinite(Date.parse(options.since))
+      ? new Date(options.since)
+      : null;
+
+  let productIds: number[] | null = null;
+  if (sinceDate) {
+    const changedProducts = await db
+      .select({ id: products.id })
+      .from(products)
+      .where(and(eq(products.active, 1), sql`${products.updatedAt} > ${sinceDate}`));
+
+    const changedUnits = await db
+      .selectDistinct({ productId: inventoryUnits.productId })
+      .from(inventoryUnits)
+      .where(sql`${inventoryUnits.updatedAt} > ${sinceDate}`);
+
+    const ids = new Set<number>();
+    for (const row of changedProducts) ids.add(Number(row.id));
+    for (const row of changedUnits) ids.add(Number(row.productId));
+    productIds = Array.from(ids);
+  }
+
+  if (productIds && productIds.length === 0) {
+    return { products: [], asOf: watermark.asOf, version: watermark.version };
+  }
+
+  const rows = await db
+    .select()
+    .from(products)
+    .where(
+      and(eq(products.active, 1), productIds ? inArray(products.id, productIds) : sql`true`)
+    );
   const stockRows = await db
     .select({
       productId: inventoryUnits.productId,
       count: sql<number>`count(*)`,
     })
     .from(inventoryUnits)
-    .where(eq(inventoryUnits.status, "available"))
+    .where(
+      and(
+        eq(inventoryUnits.status, "available"),
+        productIds ? inArray(inventoryUnits.productId, productIds) : sql`true`
+      )
+    )
     .groupBy(inventoryUnits.productId);
   const stockByProduct = new Map(
     stockRows.map(row => [row.productId, Number(row.count)])
+  );
+
+  const unitUpdatedRows = await db
+    .select({
+      productId: inventoryUnits.productId,
+      updatedAt: sql<Date | null>`max(${inventoryUnits.updatedAt})`,
+    })
+    .from(inventoryUnits)
+    .where(productIds ? inArray(inventoryUnits.productId, productIds) : sql`true`)
+    .groupBy(inventoryUnits.productId);
+  const unitUpdatedAtByProduct = new Map(
+    unitUpdatedRows.map(row => [row.productId, row.updatedAt])
   );
 
   const result: PosRemoteProduct[] = rows.map(p => ({
@@ -352,8 +407,13 @@ export async function listPosProducts(): Promise<{
     price: Number(p.price),
     stock: stockByProduct.get(p.id) ?? 0,
     status: p.active ? "published" : "draft",
-    updatedAt:
-      p.updatedAt instanceof Date ? p.updatedAt.toISOString() : undefined,
+    updatedAt: (() => {
+      const a = p.updatedAt instanceof Date ? p.updatedAt : null;
+      const b = unitUpdatedAtByProduct.get(p.id) ?? null;
+      const ts = [a, b].filter((d): d is Date => d instanceof Date);
+      if (!ts.length) return undefined;
+      return new Date(Math.max(...ts.map(d => d.getTime()))).toISOString();
+    })(),
   }));
 
   return { products: result, asOf: watermark.asOf, version: watermark.version };

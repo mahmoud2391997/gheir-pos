@@ -78,6 +78,7 @@ export const inventoryUnits = mysqlTable(
       .notNull(),
     soldAt: timestamp("soldAt"),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
   table => ({
     productStatusIndex: index("inventory_units_product_status_idx").on(
