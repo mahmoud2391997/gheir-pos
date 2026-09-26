@@ -19,7 +19,12 @@ export type PendingSale = {
   createdAt: string;
   paymentMethod: PaymentMethod;
   notes?: string;
-  items: Array<{ sku: string; quantity: number; unitPrice: number; name: string }>;
+  items: Array<{
+    sku: string;
+    quantity: number;
+    unitPrice: number;
+    name: string;
+  }>;
 };
 
 export type PosStatus = {
@@ -34,7 +39,11 @@ export type PosStatus = {
 
 type InventoryBridge = {
   isConfigured: () => Promise<boolean>;
-  getProducts: () => Promise<{ products: ProductRecord[]; pendingCount: number; configured: boolean }>;
+  getProducts: () => Promise<{
+    products: ProductRecord[];
+    pendingCount: number;
+    configured: boolean;
+  }>;
   enqueueSale: (sale: PendingSale) => Promise<{ pendingCount: number }>;
   syncPending: () => Promise<{ synced: number; remaining: number }>;
   getDeviceId: () => Promise<string | undefined>;
@@ -47,10 +56,12 @@ declare global {
   }
 }
 
-const baseUrl = () => String(import.meta.env.VITE_WEBSITE_API_BASE_URL || "").replace(/\/+$/, "");
+const baseUrl = () =>
+  String(import.meta.env.VITE_WEBSITE_API_BASE_URL || "").replace(/\/+$/, "");
 /** Web-only fallback. Electron never injects VITE_POS_API_KEY into the renderer. */
 const posKey = () => String(import.meta.env.VITE_POS_API_KEY || "");
-export const deviceId = () => String(import.meta.env.VITE_POS_DEVICE_ID || "").trim() || undefined;
+export const deviceId = () =>
+  String(import.meta.env.VITE_POS_DEVICE_ID || "").trim() || undefined;
 
 function bridge(): InventoryBridge | undefined {
   return typeof window !== "undefined" ? window.gheirInventory : undefined;
@@ -150,7 +161,7 @@ export function enqueuePendingSale(sale: PendingSale) {
     return;
   }
   const cur = readPendingSales();
-  if (cur.some((s) => s.clientSaleId === sale.clientSaleId)) return;
+  if (cur.some(s => s.clientSaleId === sale.clientSaleId)) return;
   writePendingSales([sale, ...cur]);
 }
 
@@ -171,9 +182,12 @@ export function pendingQuantityBySku(pending: PendingSale[]) {
   return map;
 }
 
-export function applyPendingToStock(products: ProductRecord[], pending: PendingSale[]) {
+export function applyPendingToStock(
+  products: ProductRecord[],
+  pending: PendingSale[]
+) {
   const pendingBySku = pendingQuantityBySku(pending);
-  return products.map((p) => {
+  return products.map(p => {
     const sku = p.baseSku;
     const pendingQty = pendingBySku.get(sku) ?? 0;
     return { ...p, stock: Math.max(0, p.stock - pendingQty) };
@@ -207,8 +221,11 @@ export function mapRemoteProduct(p: RemoteProduct): ProductRecord {
 }
 
 /** Merge remote rows into the local cache keyed by sku (`baseSku`). */
-export function mergeProductsBySku(existing: ProductRecord[], incoming: ProductRecord[]) {
-  const bySku = new Map(existing.map((p) => [p.baseSku, p]));
+export function mergeProductsBySku(
+  existing: ProductRecord[],
+  incoming: ProductRecord[]
+) {
+  const bySku = new Map(existing.map(p => [p.baseSku, p]));
   for (const product of incoming) {
     if (!product.baseSku) continue;
     bySku.set(product.baseSku, product);
@@ -238,11 +255,20 @@ export async function fetchPosStatus(): Promise<PosStatus> {
 
   const configured = Boolean(baseUrl() && posKey());
   if (!configured) {
-    return { ok: false, configured: false, etag: null, lastUpdatedAt: null, inventoryVersion: null, changed: false };
+    return {
+      ok: false,
+      configured: false,
+      etag: null,
+      lastUpdatedAt: null,
+      inventoryVersion: null,
+      changed: false,
+    };
   }
 
   try {
-    const response = await fetch(`${baseUrl()}/api/pos/status`, { headers: authHeaders() });
+    const response = await fetch(`${baseUrl()}/api/pos/status`, {
+      headers: authHeaders(),
+    });
     const etag = response.headers.get("etag");
     const json = (await response.json().catch(() => ({}))) as {
       ok?: boolean;
@@ -251,7 +277,14 @@ export async function fetchPosStatus(): Promise<PosStatus> {
       error?: string;
     };
     if (!response.ok) {
-      return { ok: false, configured: true, etag: null, lastUpdatedAt: null, inventoryVersion: null, changed: false };
+      return {
+        ok: false,
+        configured: true,
+        etag: null,
+        lastUpdatedAt: null,
+        inventoryVersion: null,
+        changed: false,
+      };
     }
     const lastUpdatedAt = json.lastUpdatedAt ?? null;
     const stored = readStoredEtag();
@@ -270,7 +303,14 @@ export async function fetchPosStatus(): Promise<PosStatus> {
       changed,
     };
   } catch {
-    return { ok: false, configured: true, etag: null, lastUpdatedAt: null, inventoryVersion: null, changed: false };
+    return {
+      ok: false,
+      configured: true,
+      etag: null,
+      lastUpdatedAt: null,
+      inventoryVersion: null,
+      changed: false,
+    };
   }
 }
 
@@ -293,13 +333,20 @@ export async function fetchRemoteProducts(options?: {
   const b = bridge();
   if (b) {
     const result = await b.getProducts();
-    return { products: result.products, notModified: false, etag: null, asOf: null };
+    return {
+      products: result.products,
+      notModified: false,
+      etag: null,
+      asOf: null,
+    };
   }
 
   const cached = readCachedProducts();
   const storedEtag = readStoredEtag();
   const lastUpdatedAt = readLastUpdatedAt();
-  const preferDelta = Boolean(options?.preferDelta && lastUpdatedAt && cached.length && !options?.force);
+  const preferDelta = Boolean(
+    options?.preferDelta && lastUpdatedAt && cached.length && !options?.force
+  );
 
   if (preferDelta && lastUpdatedAt) {
     const url = `${baseUrl()}/api/pos/products?since=${encodeURIComponent(lastUpdatedAt)}`;
@@ -312,12 +359,19 @@ export async function fetchRemoteProducts(options?: {
       inventoryVersion?: string;
     };
     if (!response.ok) throw new Error(json.error ?? "Unable to load products");
-    const incoming = (Array.isArray(json.products) ? json.products : []).map(mapRemoteProduct);
+    const incoming = (Array.isArray(json.products) ? json.products : []).map(
+      mapRemoteProduct
+    );
     const merged = mergeProductsBySku(cached, incoming);
     writeCachedProducts(merged);
     if (etag) writeStoredEtag(etag);
     if (json.asOf) writeLastUpdatedAt(json.asOf);
-    return { products: merged, notModified: incoming.length === 0, etag, asOf: json.asOf ?? null };
+    return {
+      products: merged,
+      notModified: incoming.length === 0,
+      etag,
+      asOf: json.asOf ?? null,
+    };
   }
 
   const headers = authHeaders();
@@ -327,7 +381,12 @@ export async function fetchRemoteProducts(options?: {
   const etag = response.headers.get("etag");
 
   if (response.status === 304) {
-    return { products: cached, notModified: true, etag: storedEtag, asOf: readLastUpdatedAt() };
+    return {
+      products: cached,
+      notModified: true,
+      etag: storedEtag,
+      asOf: readLastUpdatedAt(),
+    };
   }
 
   const json = (await response.json().catch(() => ({}))) as {
@@ -338,7 +397,9 @@ export async function fetchRemoteProducts(options?: {
   };
   if (!response.ok) throw new Error(json.error ?? "Unable to load products");
 
-  const products = (Array.isArray(json.products) ? json.products : []).map(mapRemoteProduct);
+  const products = (Array.isArray(json.products) ? json.products : []).map(
+    mapRemoteProduct
+  );
   writeCachedProducts(products);
   if (etag) writeStoredEtag(etag);
   if (json.asOf) writeLastUpdatedAt(json.asOf);
@@ -348,7 +409,12 @@ export async function fetchRemoteProducts(options?: {
 export async function loadInventorySnapshot(options?: {
   force?: boolean;
   preferDelta?: boolean;
-}): Promise<{ products: ProductRecord[]; pendingCount: number; configured: boolean; notModified?: boolean }> {
+}): Promise<{
+  products: ProductRecord[];
+  pendingCount: number;
+  configured: boolean;
+  notModified?: boolean;
+}> {
   const b = bridge();
   if (b) {
     const result = await b.getProducts();
@@ -356,7 +422,11 @@ export async function loadInventorySnapshot(options?: {
   }
   const configured = Boolean(baseUrl() && posKey());
   if (!configured) {
-    return { products: [], pendingCount: readPendingSales().length, configured: false };
+    return {
+      products: [],
+      pendingCount: readPendingSales().length,
+      configured: false,
+    };
   }
   const pending = readPendingSales();
   try {
@@ -369,11 +439,19 @@ export async function loadInventorySnapshot(options?: {
     };
   } catch {
     const cached = readCachedProducts();
-    return { products: applyPendingToStock(cached, pending), pendingCount: pending.length, configured: true, notModified: true };
+    return {
+      products: applyPendingToStock(cached, pending),
+      pendingCount: pending.length,
+      configured: true,
+      notModified: true,
+    };
   }
 }
 
-export async function syncPendingSales(): Promise<{ synced: number; remaining: number }> {
+export async function syncPendingSales(): Promise<{
+  synced: number;
+  remaining: number;
+}> {
   const b = bridge();
   if (b) return b.syncPending();
 
@@ -394,7 +472,7 @@ export async function syncPendingSales(): Promise<{ synced: number; remaining: n
           deviceId: sale.deviceId,
           paymentMethod: sale.paymentMethod,
           notes: sale.notes,
-          items: sale.items.map((it) => ({ sku: it.sku, quantity: it.quantity })),
+          items: sale.items.map(it => ({ sku: it.sku, quantity: it.quantity })),
         }),
       });
       const json = await response.json().catch(() => ({}));

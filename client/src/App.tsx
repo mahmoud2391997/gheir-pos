@@ -25,7 +25,9 @@ function Protected({ children }: { children: React.ReactNode }) {
       <div className="grain flex min-h-dvh items-center justify-center bg-[#f2ead8]">
         <div className="flex items-center gap-3 rounded-2xl border border-[#cdbb9c] bg-[#f7f0e3] px-5 py-4 text-[#2f3e34]">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="mono text-[10px] uppercase tracking-[.16em]">Restoring session</span>
+          <span className="mono text-[10px] uppercase tracking-[.16em]">
+            Restoring session
+          </span>
         </div>
       </div>
     );

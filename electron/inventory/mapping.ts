@@ -22,7 +22,7 @@ function skuToId(sku: string) {
 }
 
 export function mapRemoteProducts(products: RemoteProduct[]): ProductRecord[] {
-  return products.map((p) => {
+  return products.map(p => {
     const sku = String(p.sku || p.slug || "").trim();
     const baseSku = sku || String(p.slug || "").trim();
     const name = String(p.name || baseSku);
@@ -59,9 +59,12 @@ export function pendingQuantityBySku(pending: PendingLike[]) {
   return map;
 }
 
-export function applyPendingToStock(products: ProductRecord[], pending: PendingLike[]) {
+export function applyPendingToStock(
+  products: ProductRecord[],
+  pending: PendingLike[]
+) {
   const pendingBySku = pendingQuantityBySku(pending);
-  return products.map((p) => {
+  return products.map(p => {
     const pendingQty = pendingBySku.get(p.baseSku) ?? 0;
     return { ...p, stock: Math.max(0, p.stock - pendingQty) };
   });

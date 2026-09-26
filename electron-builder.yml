@@ -1,32 +1,22 @@
 {
   "appId": "com.gheir.pos",
   "productName": "GHEIR POS",
-  "directories": {
-    "output": "release",
-    "buildResources": "electron/assets"
-  },
-  "files": [
-    "dist/public/**/*",
-    "dist-electron/**/*",
-    "package.json"
-  ],
-  "asarUnpack": [
-    "**/node_modules/better-sqlite3/**/*"
-  ],
+  "directories": { "output": "release", "buildResources": "electron/assets" },
+  "files": ["dist/public/**/*", "dist-electron/**/*", "package.json"],
+  "asarUnpack": ["**/node_modules/better-sqlite3/**/*"],
   "extraResources": [],
   "asar": true,
-  "linux": {
-    "target": ["AppImage", "deb"],
-    "category": "Office",
-    "icon": "electron/assets/icon.png"
-  },
-  "mac": {
-    "target": ["dmg"],
-    "category": "public.app-category.business",
-    "icon": "electron/assets/icon.png"
-  },
-  "win": {
-    "target": ["nsis"],
-    "icon": "electron/assets/icon.png"
-  }
+  "linux":
+    {
+      "target": ["AppImage", "deb"],
+      "category": "Office",
+      "icon": "electron/assets/icon.png",
+    },
+  "mac":
+    {
+      "target": ["dmg"],
+      "category": "public.app-category.business",
+      "icon": "electron/assets/icon.png",
+    },
+  "win": { "target": ["nsis"], "icon": "electron/assets/icon.png" },
 }

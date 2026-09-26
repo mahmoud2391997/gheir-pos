@@ -6,7 +6,11 @@ export const ENV = {
     return process.env.JWT_SECRET ?? "";
   },
   get cookieSameSite() {
-    return (process.env.COOKIE_SAMESITE ?? "").toLowerCase() as "" | "lax" | "none" | "strict";
+    return (process.env.COOKIE_SAMESITE ?? "").toLowerCase() as
+      | ""
+      | "lax"
+      | "none"
+      | "strict";
   },
   get databaseUrl() {
     return process.env.DATABASE_URL ?? "";

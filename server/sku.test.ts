@@ -1,21 +1,50 @@
 import { describe, expect, it } from "vitest";
-import { createProductSku, generateSkuRows, roleCanAccess, skuLabelCsv } from "../shared/sku";
+import {
+  createProductSku,
+  generateSkuRows,
+  roleCanAccess,
+  skuLabelCsv,
+} from "../shared/sku";
 
 describe("GHEIR SKU rules", () => {
   it("composes a stable family, color extension, and unique copy serial", () => {
     expect(createProductSku("vase", "clay", 7)).toBe("VASE-CLAY-0007");
-    expect(createProductSku(" tray ", "sand finish", 12)).toBe("TRAY-SAND-FINISH-0012");
+    expect(createProductSku(" tray ", "sand finish", 12)).toBe(
+      "TRAY-SAND-FINISH-0012"
+    );
   });
 
   it("generates sequential labels for a physical copy run", () => {
-    const rows = generateSkuRows({ baseSku: "VESSEL", colorCode: "CLAY", copies: 3, nextSerial: 7 }, "Sculpted Vessel", "Clay", 1850);
-    expect(rows.map((row) => row.sku)).toEqual(["VESSEL-CLAY-0007", "VESSEL-CLAY-0008", "VESSEL-CLAY-0009"]);
+    const rows = generateSkuRows(
+      { baseSku: "VESSEL", colorCode: "CLAY", copies: 3, nextSerial: 7 },
+      "Sculpted Vessel",
+      "Clay",
+      1850
+    );
+    expect(rows.map(row => row.sku)).toEqual([
+      "VESSEL-CLAY-0007",
+      "VESSEL-CLAY-0008",
+      "VESSEL-CLAY-0009",
+    ]);
   });
 
   it("exports printer-friendly CSV with a header and escaped values", () => {
-    const csv = skuLabelCsv([{ sku: "VASE-CLAY-0007", name: "Sculpted Vessel", arabicName: "إناء منحوت", color: "Clay", colorArabic: "طين", price: 1850 }]);
-    expect(csv).toContain("SKU,Product English,Product Arabic,Color English,Color Arabic,Price");
-    expect(csv).toContain('"VASE-CLAY-0007","Sculpted Vessel","إناء منحوت","Clay","طين","1850.00"');
+    const csv = skuLabelCsv([
+      {
+        sku: "VASE-CLAY-0007",
+        name: "Sculpted Vessel",
+        arabicName: "إناء منحوت",
+        color: "Clay",
+        colorArabic: "طين",
+        price: 1850,
+      },
+    ]);
+    expect(csv).toContain(
+      "SKU,Product English,Product Arabic,Color English,Color Arabic,Price"
+    );
+    expect(csv).toContain(
+      '"VASE-CLAY-0007","Sculpted Vessel","إناء منحوت","Clay","طين","1850.00"'
+    );
   });
 });
 

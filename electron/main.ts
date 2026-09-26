@@ -4,7 +4,14 @@ import { config as loadEnv } from "dotenv";
 import { app, BrowserWindow, ipcMain, session, shell } from "electron";
 import { COOKIE_NAME } from "../shared/const";
 import { countPendingSales, getDb } from "./inventory/db";
-import { enqueueSaleFromRenderer, fetchPosStatus, getProducts, startSyncWorker, stopSyncWorker, syncPending } from "./inventory/sync";
+import {
+  enqueueSaleFromRenderer,
+  fetchPosStatus,
+  getProducts,
+  startSyncWorker,
+  stopSyncWorker,
+  syncPending,
+} from "./inventory/sync";
 import { loadSecrets, secretsConfigured } from "./secrets";
 
 loadEnv();
@@ -26,7 +33,11 @@ function writeMainLog(event: string, detail: unknown) {
         : detail instanceof Error
           ? `${detail.name}: ${detail.message}\n${detail.stack ?? ""}`
           : JSON.stringify(detail);
-    fs.appendFileSync(file, `[${new Date().toISOString()}] ${event} ${payload}\n`, "utf8");
+    fs.appendFileSync(
+      file,
+      `[${new Date().toISOString()}] ${event} ${payload}\n`,
+      "utf8"
+    );
   } catch {
     // ignore logging failures
   }
@@ -34,8 +45,12 @@ function writeMainLog(event: string, detail: unknown) {
 
 function registerIpc() {
   ipcMain.handle("inventory:isConfigured", () => secretsConfigured());
-  ipcMain.handle("inventory:getProducts", async () => getProducts({ preferDelta: true }));
-  ipcMain.handle("inventory:enqueueSale", (_event, sale) => enqueueSaleFromRenderer(sale));
+  ipcMain.handle("inventory:getProducts", async () =>
+    getProducts({ preferDelta: true })
+  );
+  ipcMain.handle("inventory:enqueueSale", (_event, sale) =>
+    enqueueSaleFromRenderer(sale)
+  );
   ipcMain.handle("inventory:syncPending", async () => syncPending());
   ipcMain.handle("inventory:getDeviceId", () => loadSecrets().deviceId);
   ipcMain.handle("inventory:pendingCount", () => countPendingSales());
@@ -48,7 +63,9 @@ function registerIpc() {
     for (const cookie of cookies) {
       const domain = (cookie.domain || "").replace(/^\./, "");
       const scheme = cookie.secure ? "https" : "http";
-      const url = domain ? `${scheme}://${domain}${cookie.path || "/"}` : undefined;
+      const url = domain
+        ? `${scheme}://${domain}${cookie.path || "/"}`
+        : undefined;
       if (!url) continue;
       await ses.cookies.remove(url, COOKIE_NAME);
       cleared += 1;
@@ -56,37 +73,52 @@ function registerIpc() {
     return { cleared };
   });
 
-  ipcMain.handle("print:receipt", async (_event, input: { title: string; documentHtml: string }) => {
-    try {
-      const win = new BrowserWindow({
-        show: false,
-        width: 480,
-        height: 740,
-        title: input.title || "Print",
-        webPreferences: {
-          contextIsolation: true,
-          nodeIntegration: false,
-          sandbox: true,
-          partition: "persist:gheir-pos",
-        },
-      });
-
-      const url = `data:text/html;charset=utf-8,${encodeURIComponent(input.documentHtml)}`;
-      await win.loadURL(url);
-
-      const result = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
-        win.webContents.print({ silent: false, printBackground: true }, (success, failureReason) => {
-          resolve(success ? { ok: true } : { ok: false, error: failureReason || "Print failed" });
+  ipcMain.handle(
+    "print:receipt",
+    async (_event, input: { title: string; documentHtml: string }) => {
+      try {
+        const win = new BrowserWindow({
+          show: false,
+          width: 480,
+          height: 740,
+          title: input.title || "Print",
+          webPreferences: {
+            contextIsolation: true,
+            nodeIntegration: false,
+            sandbox: true,
+            partition: "persist:gheir-pos",
+          },
         });
-      });
 
-      win.close();
-      return result;
-    } catch (error) {
-      writeMainLog("print_failed", error);
-      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+        const url = `data:text/html;charset=utf-8,${encodeURIComponent(input.documentHtml)}`;
+        await win.loadURL(url);
+
+        const result = await new Promise<{ ok: boolean; error?: string }>(
+          resolve => {
+            win.webContents.print(
+              { silent: false, printBackground: true },
+              (success, failureReason) => {
+                resolve(
+                  success
+                    ? { ok: true }
+                    : { ok: false, error: failureReason || "Print failed" }
+                );
+              }
+            );
+          }
+        );
+
+        win.close();
+        return result;
+      } catch (error) {
+        writeMainLog("print_failed", error);
+        return {
+          ok: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
     }
-  });
+  );
 }
 
 async function createWindow() {
@@ -134,8 +166,12 @@ app.whenReady().then(async () => {
   });
 });
 
-process.on("uncaughtException", (error) => writeMainLog("uncaughtException", error));
-process.on("unhandledRejection", (reason) => writeMainLog("unhandledRejection", reason));
+process.on("uncaughtException", error =>
+  writeMainLog("uncaughtException", error)
+);
+process.on("unhandledRejection", reason =>
+  writeMainLog("unhandledRejection", reason)
+);
 
 app.on("render-process-gone", (_event, details) => {
   writeMainLog("render-process-gone", details);

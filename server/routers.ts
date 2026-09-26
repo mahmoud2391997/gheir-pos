@@ -3,41 +3,65 @@ import { COOKIE_NAME, ONE_YEAR_MS, UNAUTHED_ERR_MSG } from "@shared/const";
 import { TRPCError } from "@trpc/server";
 import type { User } from "../drizzle/schema";
 import { getSessionCookieOptions } from "./_core/cookies";
-import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import {
+  adminProcedure,
+  protectedProcedure,
+  publicProcedure,
+  router,
+} from "./_core/trpc";
 import { verifyPassword } from "./_core/password";
 import { sdk } from "./_core/sdk";
-import { createProductWithVariant, createSale, createSkuPrintJob, getDashboard, getUserByUsername, listProducts, listSales, upsertUser } from "./db";
+import {
+  createProductWithVariant,
+  createSale,
+  createSkuPrintJob,
+  getDashboard,
+  getUserByUsername,
+  listProducts,
+  listSales,
+  upsertUser,
+} from "./db";
 
 const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
 
 function toPublicUser(user: User) {
   // Never leak password hashes to the client.
-  const { passwordHash: _passwordHash, ...rest } = user as unknown as User & { passwordHash?: string | null };
+  const { passwordHash: _passwordHash, ...rest } = user as unknown as User & {
+    passwordHash?: string | null;
+  };
   return rest;
 }
 
 export const appRouter = router({
   system: router({}),
   auth: router({
-    me: publicProcedure.query(({ ctx }) => (ctx.user ? toPublicUser(ctx.user) : null)),
+    me: publicProcedure.query(({ ctx }) =>
+      ctx.user ? toPublicUser(ctx.user) : null
+    ),
     login: publicProcedure
       .input(
         z.object({
           username: z.string().trim().min(1).max(64),
           password: z.string().min(1).max(256),
           rememberMe: z.boolean().optional(),
-        }),
+        })
       )
       .mutation(async ({ ctx, input }) => {
         const username = input.username.trim().toLowerCase();
         const user = await getUserByUsername(username);
         if (!user || !user.passwordHash) {
-          throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: UNAUTHED_ERR_MSG,
+          });
         }
 
         const ok = await verifyPassword(input.password, user.passwordHash);
         if (!ok) {
-          throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+          throw new TRPCError({
+            code: "UNAUTHORIZED",
+            message: UNAUTHED_ERR_MSG,
+          });
         }
 
         const maxAgeMs = input.rememberMe ? ONE_YEAR_MS : SESSION_MAX_AGE_MS;
@@ -47,7 +71,10 @@ export const appRouter = router({
           expiresInMs: maxAgeMs,
         });
 
-        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: maxAgeMs });
+        ctx.res.cookie(COOKIE_NAME, sessionToken, {
+          ...cookieOptions,
+          maxAge: maxAgeMs,
+        });
 
         await upsertUser({ openId: user.openId, lastSignedIn: new Date() });
 
@@ -62,29 +89,101 @@ export const appRouter = router({
   dashboard: protectedProcedure.query(() => getDashboard()),
   products: router({
     list: protectedProcedure.query(() => listProducts()),
-    create: adminProcedure.input(z.object({ name: z.string().trim().min(1), arabicName: z.string().optional(), category: z.string().trim().min(1), price: z.number().nonnegative(), colors: z.array(z.string().trim().min(1)).min(1).max(20), copies: z.number().int().positive().max(500) }).superRefine((input, ctx) => { if (new Set(input.colors.map((color) => color.toUpperCase())).size !== input.colors.length) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["colors"], message: "Colors must be unique" }); })).mutation(({ input }) => createProductWithVariant(input)),
+    create: adminProcedure
+      .input(
+        z
+          .object({
+            name: z.string().trim().min(1),
+            arabicName: z.string().optional(),
+            category: z.string().trim().min(1),
+            price: z.number().nonnegative(),
+            colors: z.array(z.string().trim().min(1)).min(1).max(20),
+            copies: z.number().int().positive().max(500),
+          })
+          .superRefine((input, ctx) => {
+            if (
+              new Set(input.colors.map(color => color.toUpperCase())).size !==
+              input.colors.length
+            )
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ["colors"],
+                message: "Colors must be unique",
+              });
+          })
+      )
+      .mutation(({ input }) => createProductWithVariant(input)),
   }),
   sales: router({
-    list: protectedProcedure.input(z.object({ limit: z.number().int().positive().max(100).default(100) }).optional()).query(({ input }) => listSales(input?.limit ?? 100)),
-    create: protectedProcedure.input(z.object({ customerName: z.string().nullable().optional(), subtotal: z.number().nonnegative(), tax: z.number().nonnegative(), total: z.number().nonnegative(), paymentMethod: z.enum(["cash", "card", "instapay"]), items: z.array(z.object({ productId: z.number().int().positive(), quantity: z.number().int().positive(), name: z.string(), unitPrice: z.number().nonnegative(), lineTotal: z.number().nonnegative() })).min(1) })).mutation(({ ctx, input }) => createSale({ ...input, cashierId: ctx.user.id })),
+    list: protectedProcedure
+      .input(
+        z
+          .object({ limit: z.number().int().positive().max(100).default(100) })
+          .optional()
+      )
+      .query(({ input }) => listSales(input?.limit ?? 100)),
+    create: protectedProcedure
+      .input(
+        z.object({
+          customerName: z.string().nullable().optional(),
+          subtotal: z.number().nonnegative(),
+          tax: z.number().nonnegative(),
+          total: z.number().nonnegative(),
+          paymentMethod: z.enum(["cash", "card", "instapay"]),
+          items: z
+            .array(
+              z.object({
+                productId: z.number().int().positive(),
+                quantity: z.number().int().positive(),
+                name: z.string(),
+                unitPrice: z.number().nonnegative(),
+                lineTotal: z.number().nonnegative(),
+              })
+            )
+            .min(1),
+        })
+      )
+      .mutation(({ ctx, input }) =>
+        createSale({ ...input, cashierId: ctx.user.id })
+      ),
   }),
   sku: router({
-    createPrintJob: adminProcedure.input(z.object({ rowCount: z.number().int().positive().max(5000) })).mutation(({ ctx, input }) => createSkuPrintJob(ctx.user.id, input.rowCount)),
+    createPrintJob: adminProcedure
+      .input(z.object({ rowCount: z.number().int().positive().max(5000) }))
+      .mutation(({ ctx, input }) =>
+        createSkuPrintJob(ctx.user.id, input.rowCount)
+      ),
   }),
 });
 
 export type AppRouter = typeof appRouter;
 
 export const roleContract = {
-  cashier: ["auth.me", "dashboard", "products.list", "sales.list", "sales.create"],
-  admin: ["auth.me", "dashboard", "products.list", "products.create", "sales.list", "sales.create", "sku.createPrintJob"],
+  cashier: [
+    "auth.me",
+    "dashboard",
+    "products.list",
+    "sales.list",
+    "sales.create",
+  ],
+  admin: [
+    "auth.me",
+    "dashboard",
+    "products.list",
+    "products.create",
+    "sales.list",
+    "sales.create",
+    "sku.createPrintJob",
+  ],
 } as const;
 
 export const hardwareContract = {
-  scanner: "Keyboard-wedge scanners feed the register input and resolve SKUs on Enter.",
+  scanner:
+    "Keyboard-wedge scanners feed the register input and resolve SKUs on Enter.",
   receiptPrinter: "Receipt output uses window.print in browser mode.",
   skuPrinter: "SKU labels export as CSV for label-printer software.",
-  electron: "Native bridges can replace these adapters without changing route contracts.",
+  electron:
+    "Native bridges can replace these adapters without changing route contracts.",
 } as const;
 
 export const skuContract = {

@@ -33,7 +33,7 @@ export function useAuth(options?: UseAuthOptions) {
       await loginMutation.mutateAsync(input);
       return await utils.auth.me.fetch();
     },
-    [loginMutation, utils.auth.me],
+    [loginMutation, utils.auth.me]
   );
 
   const logout = useCallback(async () => {
@@ -65,8 +65,12 @@ export function useAuth(options?: UseAuthOptions) {
     );
     return {
       user: meQuery.data ?? null,
-      loading: meQuery.isLoading || logoutMutation.isPending || loginMutation.isPending,
-      error: meQuery.error ?? logoutMutation.error ?? loginMutation.error ?? null,
+      loading:
+        meQuery.isLoading ||
+        logoutMutation.isPending ||
+        loginMutation.isPending,
+      error:
+        meQuery.error ?? logoutMutation.error ?? loginMutation.error ?? null,
       isAuthenticated: Boolean(meQuery.data),
     };
   }, [

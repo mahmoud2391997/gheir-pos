@@ -41,7 +41,9 @@ export function getSessionCookieOptions(
   //       : undefined;
 
   const sameSite =
-    ENV.cookieSameSite === "none" || ENV.cookieSameSite === "strict" || ENV.cookieSameSite === "lax"
+    ENV.cookieSameSite === "none" ||
+    ENV.cookieSameSite === "strict" ||
+    ENV.cookieSameSite === "lax"
       ? ENV.cookieSameSite
       : "lax";
 

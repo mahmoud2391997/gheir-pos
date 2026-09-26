@@ -1,6 +1,12 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,7 +36,10 @@ export default function Login() {
   });
 
   const isSubmitting = form.formState.isSubmitting;
-  const canSubmit = useMemo(() => !loading && !isSubmitting, [isSubmitting, loading]);
+  const canSubmit = useMemo(
+    () => !loading && !isSubmitting,
+    [isSubmitting, loading]
+  );
 
   useEffect(() => {
     if (user && !loading) setLocation("/");
@@ -46,7 +55,10 @@ export default function Login() {
       });
       setLocation("/");
     } catch (error: unknown) {
-      if (error instanceof TRPCClientError && error.data?.code === "UNAUTHORIZED") {
+      if (
+        error instanceof TRPCClientError &&
+        error.data?.code === "UNAUTHORIZED"
+      ) {
         setSubmitError("Invalid username or password.");
         return;
       }
@@ -58,12 +70,18 @@ export default function Login() {
     <div className="grain flex min-h-dvh items-center justify-center bg-[#f2ead8] px-5 py-12">
       <div className="w-full max-w-md">
         <div className="mb-6 flex items-center justify-center">
-          <img src="/gheir-brand-lockup.png" alt="GHEIR" className="h-20 w-auto object-contain" />
+          <img
+            src="/gheir-brand-lockup.png"
+            alt="GHEIR"
+            className="h-20 w-auto object-contain"
+          />
         </div>
 
         <Card className="border-[#cdbb9c] bg-[#f7f0e3] text-[#2b2b2b]">
           <CardHeader>
-            <CardTitle className="serif text-3xl tracking-tight text-[#2f3e34]">Sign in</CardTitle>
+            <CardTitle className="serif text-3xl tracking-tight text-[#2f3e34]">
+              Sign in
+            </CardTitle>
             <CardDescription className="text-[#71675b]">
               What is made by hand can never be truly copied.
             </CardDescription>
@@ -71,7 +89,10 @@ export default function Login() {
           <CardContent>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username" className="text-xs font-bold text-[#5c4033]">
+                <Label
+                  htmlFor="username"
+                  className="text-xs font-bold text-[#5c4033]"
+                >
                   Username
                 </Label>
                 <Input
@@ -82,12 +103,17 @@ export default function Login() {
                   {...form.register("username")}
                 />
                 {form.formState.errors.username?.message ? (
-                  <p className="text-xs font-medium text-[#9a5537]">{form.formState.errors.username.message}</p>
+                  <p className="text-xs font-medium text-[#9a5537]">
+                    {form.formState.errors.username.message}
+                  </p>
                 ) : null}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-xs font-bold text-[#5c4033]">
+                <Label
+                  htmlFor="password"
+                  className="text-xs font-bold text-[#5c4033]"
+                >
                   Password
                 </Label>
                 <Input
@@ -98,7 +124,9 @@ export default function Login() {
                   {...form.register("password")}
                 />
                 {form.formState.errors.password?.message ? (
-                  <p className="text-xs font-medium text-[#9a5537]">{form.formState.errors.password.message}</p>
+                  <p className="text-xs font-medium text-[#9a5537]">
+                    {form.formState.errors.password.message}
+                  </p>
                 ) : null}
               </div>
 
@@ -106,11 +134,15 @@ export default function Login() {
                 <label className="flex cursor-pointer items-center gap-2 text-xs text-[#71675b]">
                   <Checkbox
                     checked={Boolean(form.watch("rememberMe"))}
-                    onCheckedChange={(checked) => form.setValue("rememberMe", Boolean(checked))}
+                    onCheckedChange={checked =>
+                      form.setValue("rememberMe", Boolean(checked))
+                    }
                   />
                   Remember me
                 </label>
-                <span className="mono text-[10px] uppercase tracking-[.16em] text-[#817664]">GHEIR POS</span>
+                <span className="mono text-[10px] uppercase tracking-[.16em] text-[#817664]">
+                  GHEIR POS
+                </span>
               </div>
 
               {submitError ? (
@@ -133,4 +165,3 @@ export default function Login() {
     </div>
   );
 }
-
