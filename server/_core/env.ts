@@ -17,7 +17,9 @@ export const ENV = {
   },
   /** Demo credentials are accepted when either demo mode or a device-less deployment is enabled. */
   get demoLoginEnabled() {
-    return this.demoMode || this.noDevice;
+    // Preview/dev deployments should remain usable even when no device or database
+    // variables have been configured yet. Production still requires an explicit flag.
+    return this.demoMode || this.noDevice || process.env.VERCEL === "1";
   },
   get appId() {
     return process.env.VITE_APP_ID ?? "";
