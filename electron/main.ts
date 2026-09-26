@@ -55,6 +55,38 @@ function registerIpc() {
     }
     return { cleared };
   });
+
+  ipcMain.handle("print:receipt", async (_event, input: { title: string; documentHtml: string }) => {
+    try {
+      const win = new BrowserWindow({
+        show: false,
+        width: 480,
+        height: 740,
+        title: input.title || "Print",
+        webPreferences: {
+          contextIsolation: true,
+          nodeIntegration: false,
+          sandbox: true,
+          partition: "persist:gheir-pos",
+        },
+      });
+
+      const url = `data:text/html;charset=utf-8,${encodeURIComponent(input.documentHtml)}`;
+      await win.loadURL(url);
+
+      const result = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
+        win.webContents.print({ silent: false, printBackground: true }, (success, failureReason) => {
+          resolve(success ? { ok: true } : { ok: false, error: failureReason || "Print failed" });
+        });
+      });
+
+      win.close();
+      return result;
+    } catch (error) {
+      writeMainLog("print_failed", error);
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  });
 }
 
 async function createWindow() {
