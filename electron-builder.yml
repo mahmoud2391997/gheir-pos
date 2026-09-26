@@ -17,13 +17,16 @@
   "asar": true,
   "linux": {
     "target": ["AppImage", "deb"],
-    "category": "Office"
+    "category": "Office",
+    "icon": "electron/assets/icon.png"
   },
   "mac": {
     "target": ["dmg"],
-    "category": "public.app-category.business"
+    "category": "public.app-category.business",
+    "icon": "electron/assets/icon.png"
   },
   "win": {
-    "target": ["nsis"]
+    "target": ["nsis"],
+    "icon": "electron/assets/icon.png"
   }
 }

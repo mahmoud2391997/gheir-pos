@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { config as loadEnv } from "dotenv";
 import { app, BrowserWindow, ipcMain, session, shell } from "electron";
@@ -13,6 +14,23 @@ declare const __dirname: string;
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
+
+function writeMainLog(event: string, detail: unknown) {
+  try {
+    const dir = path.join(app.getPath("userData"), "logs");
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "main.log");
+    const payload =
+      typeof detail === "string"
+        ? detail
+        : detail instanceof Error
+          ? `${detail.name}: ${detail.message}\n${detail.stack ?? ""}`
+          : JSON.stringify(detail);
+    fs.appendFileSync(file, `[${new Date().toISOString()}] ${event} ${payload}\n`, "utf8");
+  } catch {
+    // ignore logging failures
+  }
+}
 
 function registerIpc() {
   ipcMain.handle("inventory:isConfigured", () => secretsConfigured());
@@ -36,6 +54,38 @@ function registerIpc() {
       cleared += 1;
     }
     return { cleared };
+  });
+
+  ipcMain.handle("print:receipt", async (_event, input: { title: string; documentHtml: string }) => {
+    try {
+      const win = new BrowserWindow({
+        show: false,
+        width: 480,
+        height: 740,
+        title: input.title || "Print",
+        webPreferences: {
+          contextIsolation: true,
+          nodeIntegration: false,
+          sandbox: true,
+          partition: "persist:gheir-pos",
+        },
+      });
+
+      const url = `data:text/html;charset=utf-8,${encodeURIComponent(input.documentHtml)}`;
+      await win.loadURL(url);
+
+      const result = await new Promise<{ ok: boolean; error?: string }>((resolve) => {
+        win.webContents.print({ silent: false, printBackground: true }, (success, failureReason) => {
+          resolve(success ? { ok: true } : { ok: false, error: failureReason || "Print failed" });
+        });
+      });
+
+      win.close();
+      return result;
+    } catch (error) {
+      writeMainLog("print_failed", error);
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
   });
 }
 
@@ -82,6 +132,13 @@ app.whenReady().then(async () => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
   });
+});
+
+process.on("uncaughtException", (error) => writeMainLog("uncaughtException", error));
+process.on("unhandledRejection", (reason) => writeMainLog("unhandledRejection", reason));
+
+app.on("render-process-gone", (_event, details) => {
+  writeMainLog("render-process-gone", details);
 });
 
 app.on("window-all-closed", () => {

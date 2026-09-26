@@ -40,3 +40,10 @@ const auth = {
 };
 
 contextBridge.exposeInMainWorld("gheirAuth", auth);
+
+const print = {
+  printReceipt: (input: { title: string; documentHtml: string }) =>
+    ipcRenderer.invoke("print:receipt", input) as Promise<{ ok: boolean; error?: string }>,
+};
+
+contextBridge.exposeInMainWorld("gheirPrint", print);

@@ -14,10 +14,15 @@ export type GheirAuthBridge = {
   clearSession: () => Promise<{ cleared: number }>;
 };
 
+export type GheirPrintBridge = {
+  printReceipt: (input: { title: string; documentHtml: string }) => Promise<{ ok: boolean; error?: string }>;
+};
+
 declare global {
   interface Window {
     gheirInventory?: GheirInventoryBridge;
     gheirAuth?: GheirAuthBridge;
+    gheirPrint?: GheirPrintBridge;
   }
 }
 
