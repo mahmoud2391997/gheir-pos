@@ -1,14 +1,63 @@
 import { z } from "zod";
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME, ONE_YEAR_MS, UNAUTHED_ERR_MSG } from "@shared/const";
+import { TRPCError } from "@trpc/server";
+import type { User } from "../drizzle/schema";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { createProductWithVariant, createSale, createSkuPrintJob, getDashboard, listProducts, listSales } from "./db";
+import { verifyPassword } from "./_core/password";
+import { sdk } from "./_core/sdk";
+import { createProductWithVariant, createSale, createSkuPrintJob, getDashboard, getUserByUsername, listProducts, listSales, upsertUser } from "./db";
+
+const SESSION_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 7;
+
+function toPublicUser(user: User) {
+  // Never leak password hashes to the client.
+  const { passwordHash: _passwordHash, ...rest } = user as unknown as User & { passwordHash?: string | null };
+  return rest;
+}
 
 export const appRouter = router({
   system: router({}),
   auth: router({
-    me: publicProcedure.query(({ ctx }) => ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => { ctx.res.clearCookie(COOKIE_NAME, { ...getSessionCookieOptions(ctx.req), maxAge: -1 }); return { success: true } as const; }),
+    me: publicProcedure.query(({ ctx }) => (ctx.user ? toPublicUser(ctx.user) : null)),
+    login: publicProcedure
+      .input(
+        z.object({
+          username: z.string().trim().min(1).max(64),
+          password: z.string().min(1).max(256),
+          rememberMe: z.boolean().optional(),
+        }),
+      )
+      .mutation(async ({ ctx, input }) => {
+        const username = input.username.trim().toLowerCase();
+        const user = await getUserByUsername(username);
+        if (!user || !user.passwordHash) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+        }
+
+        const ok = await verifyPassword(input.password, user.passwordHash);
+        if (!ok) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: UNAUTHED_ERR_MSG });
+        }
+
+        const maxAgeMs = input.rememberMe ? ONE_YEAR_MS : SESSION_MAX_AGE_MS;
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        const sessionToken = await sdk.createSessionToken(user.openId, {
+          name: user.name || user.username || "",
+          expiresInMs: maxAgeMs,
+        });
+
+        ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: maxAgeMs });
+
+        await upsertUser({ openId: user.openId, lastSignedIn: new Date() });
+
+        return toPublicUser(user);
+      }),
+    logout: publicProcedure.mutation(({ ctx }) => {
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      return { success: true } as const;
+    }),
   }),
   dashboard: protectedProcedure.query(() => getDashboard()),
   products: router({
