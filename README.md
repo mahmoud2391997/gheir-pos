@@ -21,6 +21,12 @@ Copy `.env.example` to `.env` and set at least:
 pnpm db:push
 ```
 
+`db:push` runs **migrations only**. When you change the schema, generate a migration with:
+
+```bash
+pnpm db:generate
+```
+
 ### 4) Create your first user
 
 Create an admin account (no default passwords are shipped in the repo):
