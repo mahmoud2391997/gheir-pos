@@ -16,6 +16,7 @@ import {
 } from "./_core/trpc";
 import { verifyPassword } from "./_core/password";
 import { sdk } from "./_core/sdk";
+import { ENV } from "./_core/env";
 import {
   createProductWithVariant,
   createSale,
@@ -53,14 +54,6 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ ctx, input }) => {
-        const db = await getDb();
-        if (!db) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Database not configured",
-          });
-        }
-
         const username = input.username.trim().toLowerCase();
 
         const lock = assertLoginAllowed(ctx.req, username);
@@ -68,6 +61,59 @@ export const appRouter = router({
           throw new TRPCError({
             code: "TOO_MANY_REQUESTS",
             message: "Too many login attempts. Please try again shortly.",
+          });
+        }
+
+        if (ENV.demoMode) {
+          const ok =
+            (username === "admin" &&
+              (input.password === "AdminPass123!" ||
+                input.password === "admin" ||
+                input.password === "demo")) ||
+            (username === "demo" && input.password === "demo");
+          if (!ok) {
+            recordLoginFailure(ctx.req, username);
+            throw new TRPCError({
+              code: "UNAUTHORIZED",
+              message: UNAUTHED_ERR_MSG,
+            });
+          }
+          clearLoginFailures(ctx.req, username);
+
+          const maxAgeMs = input.rememberMe ? ONE_YEAR_MS : SESSION_MAX_AGE_MS;
+          const cookieOptions = getSessionCookieOptions(ctx.req);
+          const openId = `demo:${username === "demo" ? "admin" : username}`;
+          const sessionToken = await sdk.createSessionToken(openId, {
+            name: "Demo Admin",
+            expiresInMs: maxAgeMs,
+          });
+          ctx.res.cookie(COOKIE_NAME, sessionToken, {
+            ...cookieOptions,
+            maxAge: maxAgeMs,
+          });
+
+          const now = new Date();
+          return toPublicUser({
+            id: -1,
+            openId,
+            name: "Demo Admin",
+            email: null,
+            username: "admin",
+            loginMethod: "demo",
+            passwordHash: null,
+            role: "admin",
+            createdAt: now,
+            updatedAt: now,
+            lastSignedIn: now,
+          } as User);
+        }
+
+        const db = await getDb();
+        if (!db) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message:
+              "Database not configured. Set DATABASE_URL, or set DEMO_MODE=1 for demo login.",
           });
         }
 

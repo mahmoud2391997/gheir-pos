@@ -1,4 +1,8 @@
 export const ENV = {
+  get demoMode() {
+    const raw = String(process.env.DEMO_MODE ?? "").toLowerCase();
+    return raw === "1" || raw === "true" || raw === "yes";
+  },
   get appId() {
     return process.env.VITE_APP_ID ?? "";
   },
