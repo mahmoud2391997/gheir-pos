@@ -26,4 +26,7 @@ export const ENV = {
   get forgeApiKey() {
     return process.env.BUILT_IN_FORGE_API_KEY ?? "";
   },
+  get posApiKey() {
+    return process.env.POS_API_KEY ?? process.env.VITE_POS_API_KEY ?? "";
+  },
 };
