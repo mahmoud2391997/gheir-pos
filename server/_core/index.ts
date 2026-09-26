@@ -32,12 +32,6 @@ async function startServer() {
   validateServerEnv();
   const app = createApp();
   const server = createServer(app);
-  // development mode uses Vite, production mode uses static files
-  if (process.env.NODE_ENV === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
 
   const preferredPort = parseInt(process.env.PORT || "3000");
   const port = await findAvailablePort(preferredPort);
@@ -46,13 +40,32 @@ async function startServer() {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
+  // development mode uses Vite, production mode uses static files
+  if (process.env.NODE_ENV === "development") {
+    await setupVite(app, server, port);
+  } else {
+    serveStatic(app);
+  }
+
   server.listen(port, LISTEN_HOST, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+    console.log(`Server running on http://127.0.0.1:${port}/`);
   });
 
-  // `localhost` resolves to ::1 before 127.0.0.1. An IPv6-only socket accepts
-  // that connection without taking the IPv4 port the forwarder needs.
-  const v6 = createServer(app);
+  // `localhost` resolves to ::1 before 127.0.0.1. Proxy that socket to the
+  // IPv4 server so HTTP and the Vite websocket both land on one listener.
+  const v6 = net.createServer(socket => {
+    const upstream = net.connect({ port, host: "127.0.0.1" });
+    const closeBoth = () => {
+      socket.destroy();
+      upstream.destroy();
+    };
+    socket.on("error", closeBoth);
+    upstream.on("error", closeBoth);
+    socket.on("close", () => upstream.destroy());
+    upstream.on("close", () => socket.destroy());
+    socket.pipe(upstream);
+    upstream.pipe(socket);
+  });
   v6.on("error", (err: NodeJS.ErrnoException) => {
     if (err.code === "EADDRINUSE" || err.code === "EAFNOSUPPORT") return;
     console.error(err);
