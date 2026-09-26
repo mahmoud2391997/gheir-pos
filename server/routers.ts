@@ -21,6 +21,7 @@ import {
   createSale,
   createSkuPrintJob,
   getDashboard,
+  getDb,
   getUserByUsername,
   listProducts,
   listSales,
@@ -52,6 +53,14 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Database not configured",
+          });
+        }
+
         const username = input.username.trim().toLowerCase();
 
         const lock = assertLoginAllowed(ctx.req, username);
