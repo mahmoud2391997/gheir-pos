@@ -1,6 +1,7 @@
 import path from "node:path";
 import { config as loadEnv } from "dotenv";
-import { app, BrowserWindow, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain, session, shell } from "electron";
+import { COOKIE_NAME } from "../shared/const";
 import { countPendingSales, getDb } from "./inventory/db";
 import { enqueueSaleFromRenderer, fetchPosStatus, getProducts, startSyncWorker, stopSyncWorker, syncPending } from "./inventory/sync";
 import { loadSecrets, secretsConfigured } from "./secrets";
@@ -21,6 +22,21 @@ function registerIpc() {
   ipcMain.handle("inventory:getDeviceId", () => loadSecrets().deviceId);
   ipcMain.handle("inventory:pendingCount", () => countPendingSales());
   ipcMain.handle("inventory:getStatus", async () => fetchPosStatus());
+
+  ipcMain.handle("auth:clearSession", async () => {
+    const ses = mainWindow?.webContents.session ?? session.defaultSession;
+    const cookies = await ses.cookies.get({ name: COOKIE_NAME });
+    let cleared = 0;
+    for (const cookie of cookies) {
+      const domain = (cookie.domain || "").replace(/^\./, "");
+      const scheme = cookie.secure ? "https" : "http";
+      const url = domain ? `${scheme}://${domain}${cookie.path || "/"}` : undefined;
+      if (!url) continue;
+      await ses.cookies.remove(url, COOKIE_NAME);
+      cleared += 1;
+    }
+    return { cleared };
+  });
 }
 
 async function createWindow() {
@@ -35,6 +51,7 @@ async function createWindow() {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
+      partition: "persist:gheir-pos",
       sandbox: false,
     },
   });

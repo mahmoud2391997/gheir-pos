@@ -50,6 +50,11 @@ export function useAuth(options?: UseAuthOptions) {
     } finally {
       utils.auth.me.setData(undefined, null);
       await utils.auth.me.invalidate();
+      try {
+        await window.gheirAuth?.clearSession?.();
+      } catch {
+        // ignore Electron bridge failures
+      }
     }
   }, [logoutMutation, utils]);
 
