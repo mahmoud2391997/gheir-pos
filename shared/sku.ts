@@ -74,9 +74,9 @@ export const brandQuote = "What is made by hand can never be truly copied.";
 export const demoRoleStorageKey = "gheir-demo-role";
 export const demoTaxRate = 0.14;
 export const skuFormat = "BASE-COLOR-0001";
-export const storeName = "GHEIR showroom";
-export const storeAddress = "Cairo · New Cairo";
-export const appVersion = "v0.1 / register preview";
+export const storeName = "GHEIR";
+export const storeAddress = "";
+export const appVersion = "1.0.0";
 export const appFooter = "GHEIR / 2026 · Store register";
 export const scannerMode = "keyboard wedge";
 export const printerPaper = "80mm thermal";
@@ -121,7 +121,7 @@ export async function hydrateDesktopStore() {
   } catch {}
 }
 export function persistSystemSettings(settings: SystemSettings) { rememberLocal(systemSettingsKey, JSON.stringify(settings)); }
-export const architectureCopy = "Web demo keeps data in this browser. The Electron desktop app saves it on this computer. The database connection stays commented until launch.";
+export const architectureCopy = "This register keeps the shelf and sales on this device.";
 export const browserHardwareNote = "Browser preview uses keyboard-wedge scanning and the system print dialog.";
 export const electronHardwareNote = "Electron can replace these adapters with native scanner and thermal-printer bridges without changing the POS screens.";
 export const checkoutNote = "Discounts and taxes are entered manually at the counter.";
@@ -129,12 +129,16 @@ export const skuFlowCopy = "Select products already on the shelf and export thei
 export const printFlowCopy = "CSV export is ready for a SKU printer; receipt print uses the system print dialog.";
 export const scannerFlowCopy = "Scan a full unique SKU to resolve the exact physical copy at checkout.";
 export const roleCopy: Record<UserRole, { label: string; detail: string }> = { cashier: { label: "Cashier", detail: "Register + orders" }, admin: { label: "Admin", detail: "Full store controls" } };
-export const demoUsers = [{ name: "Mariam Adel", role: "cashier" as UserRole, status: "On register" }, { name: "Omar Nassar", role: "admin" as UserRole, status: "Full access" }];
+export const demoUsers = [{ name: "Ziad", role: "cashier" as UserRole, status: "On register" }, { name: "Ziad", role: "admin" as UserRole, status: "Full access" }];
 export type LocalSession = { username: string; name: string; role: UserRole };
 export type LocalAccount = LocalSession & { password: string };
 export const localSessionKey = "gheir-local-session";
 export const localAccountsKey = "gheir-local-accounts";
 export const defaultLocalAccounts: LocalAccount[] = [
+  { username: "ziad", password: "cashier", name: "Ziad", role: "cashier" },
+  { username: "ziad", password: "admin", name: "Ziad", role: "admin" },
+];
+const retiredDefaultAccounts: LocalAccount[] = [
   { username: "mariam", password: "cashier", name: "Mariam Adel", role: "cashier" },
   { username: "omar", password: "admin", name: "Omar Nassar", role: "admin" },
 ];
@@ -152,12 +156,26 @@ export function normalizeLocalAccounts(raw: unknown): LocalAccount[] | null {
   if (!Array.isArray(raw)) return null;
   const cashier = raw.map((item) => cleanAccount(item, "cashier")).find((item): item is LocalAccount => Boolean(item));
   const admin = raw.map((item) => cleanAccount(item, "admin")).find((item): item is LocalAccount => Boolean(item));
-  if (!cashier || !admin || cashier.username === admin.username) return null;
+  if (!cashier || !admin) return null;
+  if (cashier.username === admin.username && cashier.password === admin.password) return null;
   return [cashier, admin];
+}
+function matchesAccount(account: LocalAccount, expected: LocalAccount) {
+  return account.username === expected.username && account.password === expected.password && account.role === expected.role && account.name === expected.name;
+}
+function isRetiredDefault(accounts: LocalAccount[]) {
+  return accounts.length === retiredDefaultAccounts.length && accounts.every((account, index) => matchesAccount(account, retiredDefaultAccounts[index]));
 }
 export function readLocalAccounts(): LocalAccount[] {
   if (typeof localStorage === "undefined") return defaultLocalAccounts;
-  try { return normalizeLocalAccounts(JSON.parse(localStorage.getItem(localAccountsKey) || "null")) ?? defaultLocalAccounts; } catch { return defaultLocalAccounts; }
+  try {
+    const stored = normalizeLocalAccounts(JSON.parse(localStorage.getItem(localAccountsKey) || "null"));
+    if (!stored || isRetiredDefault(stored)) {
+      if (stored) persistLocalAccounts(defaultLocalAccounts);
+      return defaultLocalAccounts;
+    }
+    return stored;
+  } catch { return defaultLocalAccounts; }
 }
 export function persistLocalAccounts(accounts: LocalAccount[]) { const next = normalizeLocalAccounts(accounts) ?? defaultLocalAccounts; rememberLocal(localAccountsKey, JSON.stringify(next)); return next; }
 export function authenticateLocal(username: string, password: string, accounts = readLocalAccounts()): LocalSession | null {
@@ -235,9 +253,40 @@ export function buildReceiptMarkup(sale: SaleRecord, logoUri?: string, settings?
 export function openPrintWindow(title: string, html: string) { if (typeof window === "undefined") return; const printWindow = window.open("", "_blank", "width=440,height=700"); if (!printWindow) return; printWindow.document.write(`<!DOCTYPE html><html><head><title>${title}</title><style>@page{margin:0}*{box-sizing:border-box}body{font-family:'Courier New',Courier,monospace;width:302px;margin:0 auto;padding:16px 0;background:#fff;color:#111;font-size:12px}.receipt{text-align:center}.logo{display:block;width:auto;max-width:140px;max-height:42px;margin:0 auto 6px}.logo img{-o-object-fit:contain;object-fit:contain}h1{font-family:Georgia,serif;letter-spacing:.14em;font-size:22px;text-align:center;margin:6px 0 2px}p{font-size:11px;color:#333;text-align:center;margin:4px 0}hr{border:none;border-top:1px dashed #999;margin:10px 0}table{width:100%;border-collapse:collapse;text-align:left}td{padding:4px 0;font-size:12px;vertical-align:top}.total{font-weight:700;font-size:15px;margin-top:10px;text-align:left}.foot{font-size:11px;text-align:center}</style></head><body>${html}</body></html>`); printWindow.document.close(); printWindow.focus(); printWindow.print(); }
 export function roleCanAccess(role: UserRole, section: AppSection) { return role === "admin" || section === "register" || section === "orders"; }
 export function persistDemoSales(sales: SaleRecord[]) { rememberLocal("gheir-demo-sales", JSON.stringify(sales)); }
-export function readDemoSales() { try { return JSON.parse(localStorage.getItem("gheir-demo-sales") || "null") as SaleRecord[] || demoSales; } catch { return demoSales; } }
+function readStoredList<T>(key: string): T[] | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "null");
+    return Array.isArray(parsed) ? parsed as T[] : null;
+  } catch { return null; }
+}
+function isShippedSampleShelf(products: ProductRecord[]) {
+  if (products.length !== demoProducts.length) return false;
+  const sample = new Set(demoProducts.map((product) => `${product.id}:${product.name}`));
+  return products.every((product) => sample.has(`${product.id}:${product.name}`));
+}
+function isShippedSampleSales(sales: SaleRecord[]) {
+  if (sales.length !== demoSales.length) return false;
+  const sample = new Set(demoSales.map((sale) => sale.receiptNumber));
+  return sales.every((sale) => sample.has(sale.receiptNumber));
+}
+export function readDemoSales() {
+  const stored = readStoredList<SaleRecord>("gheir-demo-sales");
+  if (!stored || isShippedSampleSales(stored)) {
+    if (stored) persistDemoSales([]);
+    return [];
+  }
+  return stored;
+}
 export function persistDemoProducts(products: ProductRecord[]) { rememberLocal("gheir-demo-products", JSON.stringify(products)); }
-export function readDemoProducts() { try { return JSON.parse(localStorage.getItem("gheir-demo-products") || "null") as ProductRecord[] || demoProducts; } catch { return demoProducts; } }
+export function readDemoProducts() {
+  const stored = readStoredList<ProductRecord>("gheir-demo-products");
+  if (!stored || isShippedSampleShelf(stored)) {
+    if (stored) persistDemoProducts([]);
+    return [];
+  }
+  return stored;
+}
 export function resetDemoData() { rememberLocal("gheir-demo-products", null); rememberLocal("gheir-demo-sales", null); }
 export function createLabelRows(products: ProductRecord[], copiesPerProduct = 1) { return products.flatMap((product) => generateSkuRows({ baseSku: product.baseSku, colorCode: product.colorCode, copies: copiesPerProduct, nextSerial: 1 }, product.name, product.color, product.price, product.arabicName, product.colorArabic)); }
 export function toCsvFilename(prefix = "gheir-skus") { return `${prefix}-${new Date().toISOString().slice(0, 10)}.csv`; }

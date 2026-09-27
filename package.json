@@ -25,6 +25,7 @@
     "electron:dev": "pnpm electron:compile && pnpm electron:rebuild && ELECTRON_START_URL=http://localhost:3000 electron .",
     "electron:build": "ELECTRON=1 vite build && pnpm electron:compile && electron-builder --config electron-builder.yml",
     "electron:pack": "pnpm electron:build --dir",
+    "electron:win": "ELECTRON=1 vite build && pnpm electron:compile && electron-builder --config electron-builder.yml --win nsis --x64",
     "desktop": "electron electron/main.cjs",
     "desktop:build": "ELECTRON_BUILD=1 vite build"
   },
