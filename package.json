@@ -23,9 +23,9 @@
     "electron:compile": "node scripts/compile-electron.mjs",
     "electron:rebuild": "electron-rebuild -f -w better-sqlite3",
     "electron:dev": "pnpm electron:compile && pnpm electron:rebuild && ELECTRON_START_URL=http://localhost:3000 electron .",
-    "electron:build": "ELECTRON=1 vite build && pnpm electron:compile && electron-builder --config electron-builder.yml",
-    "electron:pack": "pnpm electron:build --dir",
-    "electron:win": "ELECTRON=1 vite build && pnpm electron:compile && electron-builder --config electron-builder.yml --win nsis --x64",
+    "electron:build": "node scripts/electron-build.mjs",
+    "electron:pack": "node scripts/electron-build.mjs --dir",
+    "electron:win": "node scripts/electron-build.mjs --win nsis --x64",
     "desktop": "electron electron/main.cjs",
     "desktop:build": "ELECTRON_BUILD=1 vite build"
   },
