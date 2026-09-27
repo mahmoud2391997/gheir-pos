@@ -15,9 +15,13 @@ export const ENV = {
   get noDevice() {
     return envFlag("NO_DEVICE");
   },
-  /** Demo credentials are always available for the standalone POS preview. */
-  get demoLoginEnabled() {
+  /** Allow logging in with demo credentials (e.g. when DB is not available). */
+  get demoAuthEnabled() {
     return this.demoMode || this.noDevice;
+  },
+  /** Show the one-click demo login button in the UI. */
+  get demoLoginEnabled() {
+    return this.noDevice;
   },
   get appId() {
     return process.env.VITE_APP_ID ?? "";

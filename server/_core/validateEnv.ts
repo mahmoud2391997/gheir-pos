@@ -15,7 +15,7 @@ function isPlaceholder(value: string) {
 }
 
 export function validateServerEnv() {
-  const demoLogin = ENV.demoLoginEnabled;
+  const demoLogin = ENV.demoAuthEnabled;
 
   const jwt = String(process.env.JWT_SECRET || "");
   if (!jwt || isPlaceholder(jwt) || jwt.length < 32) {

@@ -108,7 +108,7 @@ export const appRouter = router({
               return toPublicUser(user);
             }
           }
-        } else if (!ENV.demoLoginEnabled) {
+        } else if (!ENV.demoAuthEnabled) {
           throw new TRPCError({
             code: "INTERNAL_SERVER_ERROR",
             message:
@@ -117,7 +117,7 @@ export const appRouter = router({
         }
 
         if (
-          ENV.demoLoginEnabled &&
+          ENV.demoAuthEnabled &&
           isDemoCredential(username, input.password)
         ) {
           clearLoginFailures(ctx.req, username);
