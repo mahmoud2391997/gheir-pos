@@ -17,7 +17,7 @@ export const ENV = {
   },
   /** Demo credentials are always available for the standalone POS preview. */
   get demoLoginEnabled() {
-    return true;
+    return this.demoMode || this.noDevice;
   },
   get appId() {
     return process.env.VITE_APP_ID ?? "";
