@@ -25,6 +25,10 @@ publish:
 
 afterSign: scripts/notarize.cjs
 
+# Wine 11 so a Linux machine can build the Windows installer without a system Wine install.
+toolsets:
+  wine: "1.0.1"
+
 executableName: gheir-pos
 
 linux:
