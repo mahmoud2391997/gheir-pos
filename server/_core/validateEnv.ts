@@ -38,8 +38,12 @@ export function validateServerEnv() {
 
   const nodeEnv = String(process.env.NODE_ENV || "");
   const databaseUrl = String(process.env.DATABASE_URL || "");
+  const desktopFlag = String(process.env.GHEIR_DESKTOP || "").toLowerCase();
+  const desktopLocal =
+    desktopFlag === "1" || desktopFlag === "true" || desktopFlag === "yes";
   if (
     !demoLogin &&
+    !desktopLocal &&
     nodeEnv === "production" &&
     (!databaseUrl || isPlaceholder(databaseUrl))
   ) {
