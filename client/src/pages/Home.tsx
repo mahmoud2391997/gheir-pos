@@ -97,20 +97,6 @@ function LoginScreen({ language, accounts, onLanguage, onLogin }: { language: "e
           {error ? <p className="text-sm text-[#9a5537]">{error}</p> : null}
           <button type="submit" className="w-full rounded-xl bg-[#2f3e34] px-4 py-3 text-sm font-bold text-[#f2ead8]">{t("Sign in", "تسجيل الدخول")}</button>
         </form>
-        <div className="mt-6 rounded-2xl border border-[#cdbb9c] bg-[#eadfc9] p-4 text-xs text-[#5c4033]">
-          <p className="mono text-[9px] uppercase tracking-[.16em] text-[#817664]">{t("Store accounts", "حسابات المتجر")}</p>
-          <ul className="mt-2 space-y-2">
-            {accounts.map((account) => (
-              <li key={account.role}>
-                <button type="button" onClick={() => { setUsername(account.username); setPassword(account.password); setError(""); }} className="text-start hover:text-[#2f3e34]">
-                  <span className="font-bold">{t(roleCopy[account.role].label, roleLabelAr[account.role])}</span>
-                  {" · "}{account.name}{" · "}
-                  <span className="mono">{account.username} / {account.password}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
         </div>
       </div>
     </div>
