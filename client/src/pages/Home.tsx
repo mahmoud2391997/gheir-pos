@@ -415,7 +415,7 @@ export default function Home() {
   useEffect(() => { let active = true; fetch("/gheir-brand-lockup.png").then((response) => response.blob()).then((blob) => new Promise<string>((resolve) => { const reader = new FileReader(); reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : ""); reader.readAsDataURL(blob); })).then((logoUri) => { if (active) setReceiptLogo(logoUri); }).catch(() => {}); return () => { active = false; }; }, []);
   useEffect(() => { try { setSession(readLocalSession()); setSettings(readSystemSettings()); setAccounts(readLocalAccounts()); const storedLanguage = localStorage.getItem("gheir-language"); if (storedLanguage === "en" || storedLanguage === "ar") setLanguage(storedLanguage); setProducts(readDemoProducts()); setSales(readDemoSales()); } catch {} setReady(true); }, []);
   const dashboard = useMemo(() => makeDashboard(sales, products), [products, sales]);
-  useEffect(() => { document.documentElement.dir = language === "ar" ? "rtl" : "ltr"; document.documentElement.lang = language; document.title = t("GHEIR POS System", "نظام نقاط البيع لغيّر"); }, [language]);
+  useEffect(() => { document.documentElement.dir = language === "ar" ? "rtl" : "ltr"; document.documentElement.lang = language; document.title = "GHEIR POS"; }, [language]);
   const handleLanguage = (nextLanguage: "en" | "ar") => { setLanguage(nextLanguage); rememberLocal("gheir-language", nextLanguage); };
   const handleLogin = (nextSession: LocalSession) => { persistLocalSession(nextSession); setSession(nextSession); if (!roleCanAccess(nextSession.role, section)) setSection("register"); };
   const handleLogout = () => { clearLocalSession(); setSession(null); setSection("register"); setNotice(""); };
