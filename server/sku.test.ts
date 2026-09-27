@@ -70,6 +70,9 @@ describe("local database backup", () => {
     expect(restored?.language).toBe("ar");
     expect(restored?.accounts?.map((account) => account.username)).toEqual(["ziad", "ziad"]);
     expect(restored?.accounts?.map((account) => account.password)).toEqual(["cashier", "admin"]);
+    const withPhoto = createLocalDatabase({ products: [{ ...database.products[0], image: "data:image/jpeg;base64,abc" }], sales: database.sales, settings: database.settings, language: "en" });
+    expect(parseLocalDatabase(JSON.stringify(withPhoto))?.products[0]?.image).toBe("data:image/jpeg;base64,abc");
+    expect(parseLocalDatabase(JSON.stringify(createLocalDatabase({ products: [{ ...database.products[0], image: "https://example.com/mug.jpg" }], sales: database.sales, settings: database.settings, language: "en" })))?.products[0]?.image).toBeNull();
     const legacy = JSON.parse(JSON.stringify(database)) as { accounts?: unknown };
     delete legacy.accounts;
     expect(parseLocalDatabase(JSON.stringify(legacy))?.accounts).toBeUndefined();

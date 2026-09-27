@@ -2,7 +2,7 @@ export type UserRole = "admin" | "cashier";
 export type PaymentMethod = "cash" | "card" | "instapay";
 export type AppSection = "register" | "orders" | "catalog" | "sku" | "reports" | "settings";
 
-export type ProductRecord = { id: number; name: string; arabicName?: string | null; englishName?: string | null; category: string; categoryAr?: string | null; baseSku: string; price: number; stock: number; color: string; colorArabic?: string | null; colorCode: string; shape: string; barcode?: string; active?: boolean };
+export type ProductRecord = { id: number; name: string; arabicName?: string | null; englishName?: string | null; category: string; categoryAr?: string | null; baseSku: string; price: number; stock: number; color: string; colorArabic?: string | null; colorCode: string; shape: string; barcode?: string; image?: string | null; active?: boolean };
 export type SaleRecord = { id: number; receiptNumber: string; total: number; discount: number; tax: number; tendered?: number | null; change?: number | null; paymentMethod: PaymentMethod; items: Array<{ name: string; arabicName?: string | null; quantity: number; total: number }>; createdAt: string };
 export type DashboardSummary = { todaySales: number; completedSales: number; averageOrder: number; lowStockItems: number };
 export type SkuRow = { sku: string; name: string; arabicName?: string | null; color: string; colorArabic?: string | null; price: number };
@@ -270,7 +270,7 @@ export function asPositiveInt(value: string, fallback = 1) { const number = Numb
 export function newUnitSku(product: ProductRecord, serial = 7) { return createProductSku(product.baseSku, product.colorCode, serial); }
 export function makeBarcodeText(sku: string) { return sku.replaceAll("-", ""); }
 export function hasPermission(role: UserRole, section: AppSection) { return roleCanAccess(role, section); }
-export function normalizeProduct(record: Partial<ProductRecord> & { id: number; name: string }): ProductRecord { return { id: record.id, name: record.name, arabicName: record.arabicName ?? null, category: record.category ?? "Uncategorized", categoryAr: record.categoryAr ?? null, baseSku: record.baseSku ?? "ITEM", price: Number(record.price ?? 0), stock: Number(record.stock ?? 0), color: record.color ?? "Natural", colorArabic: record.colorArabic ?? null, colorCode: record.colorCode ?? "NAT", shape: record.shape ?? "handmade", active: record.active ?? true }; }
+export function normalizeProduct(record: Partial<ProductRecord> & { id: number; name: string }): ProductRecord { const image = typeof record.image === "string" && record.image.startsWith("data:image/") ? record.image : null; return { id: record.id, name: record.name, arabicName: record.arabicName ?? null, category: record.category ?? "Uncategorized", categoryAr: record.categoryAr ?? null, baseSku: record.baseSku ?? "ITEM", price: Number(record.price ?? 0), stock: Number(record.stock ?? 0), color: record.color ?? "Natural", colorArabic: record.colorArabic ?? null, colorCode: record.colorCode ?? "NAT", shape: record.shape ?? "handmade", barcode: record.barcode, image, active: record.active ?? true }; }
 export function getLowStock(products: ProductRecord[]) { return products.filter((product) => product.stock <= 3); }
 export function isPaymentMethod(value: string): value is PaymentMethod { return ["cash", "card", "instapay"].includes(value); }
 export function makeSkuFile(rows: SkuRow[]) { return { filename: toCsvFilename(), csv: skuLabelCsv(rows), count: rows.length }; }
