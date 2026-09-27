@@ -31,11 +31,20 @@ ipcMain.handle("store:write-key", (_event, key, value) => {
   return true;
 });
 
+function resolveAppIcon() {
+  const packaged = path.join(process.resourcesPath, "icon.png");
+  const dev = path.join(__dirname, "assets/icon.png");
+  if (app.isPackaged && fs.existsSync(packaged)) return packaged;
+  if (fs.existsSync(dev)) return dev;
+  return undefined;
+}
+
 function createWindow() {
   const window = new BrowserWindow({
     width: 1440,
     height: 900,
     title: "GHEIR POS",
+    icon: resolveAppIcon(),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -51,7 +60,10 @@ function createWindow() {
   window.loadURL(process.env.ELECTRON_START_URL || "http://localhost:3000");
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  if (process.platform === "win32") app.setAppUserModelId("com.gheir.pos");
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

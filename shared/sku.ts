@@ -121,7 +121,7 @@ export async function hydrateDesktopStore() {
   } catch {}
 }
 export function persistSystemSettings(settings: SystemSettings) { rememberLocal(systemSettingsKey, JSON.stringify(settings)); }
-export const architectureCopy = "Web demo keeps data in this browser. The Electron desktop app saves it on this computer. The database connection stays commented until launch.";
+export const architectureCopy = "This register keeps the shelf and sales on this device.";
 export const browserHardwareNote = "Browser preview uses keyboard-wedge scanning and the system print dialog.";
 export const electronHardwareNote = "Electron can replace these adapters with native scanner and thermal-printer bridges without changing the POS screens.";
 export const checkoutNote = "Discounts and taxes are entered manually at the counter.";
@@ -129,12 +129,16 @@ export const skuFlowCopy = "Select products already on the shelf and export thei
 export const printFlowCopy = "CSV export is ready for a SKU printer; receipt print uses the system print dialog.";
 export const scannerFlowCopy = "Scan a full unique SKU to resolve the exact physical copy at checkout.";
 export const roleCopy: Record<UserRole, { label: string; detail: string }> = { cashier: { label: "Cashier", detail: "Register + orders" }, admin: { label: "Admin", detail: "Full store controls" } };
-export const demoUsers = [{ name: "Mariam Adel", role: "cashier" as UserRole, status: "On register" }, { name: "Omar Nassar", role: "admin" as UserRole, status: "Full access" }];
+export const demoUsers = [{ name: "Ziad", role: "cashier" as UserRole, status: "On register" }, { name: "Ziad", role: "admin" as UserRole, status: "Full access" }];
 export type LocalSession = { username: string; name: string; role: UserRole };
 export type LocalAccount = LocalSession & { password: string };
 export const localSessionKey = "gheir-local-session";
 export const localAccountsKey = "gheir-local-accounts";
 export const defaultLocalAccounts: LocalAccount[] = [
+  { username: "ziad", password: "cashier", name: "Ziad", role: "cashier" },
+  { username: "ziad", password: "admin", name: "Ziad", role: "admin" },
+];
+const retiredDefaultAccounts: LocalAccount[] = [
   { username: "mariam", password: "cashier", name: "Mariam Adel", role: "cashier" },
   { username: "omar", password: "admin", name: "Omar Nassar", role: "admin" },
 ];
@@ -152,12 +156,26 @@ export function normalizeLocalAccounts(raw: unknown): LocalAccount[] | null {
   if (!Array.isArray(raw)) return null;
   const cashier = raw.map((item) => cleanAccount(item, "cashier")).find((item): item is LocalAccount => Boolean(item));
   const admin = raw.map((item) => cleanAccount(item, "admin")).find((item): item is LocalAccount => Boolean(item));
-  if (!cashier || !admin || cashier.username === admin.username) return null;
+  if (!cashier || !admin) return null;
+  if (cashier.username === admin.username && cashier.password === admin.password) return null;
   return [cashier, admin];
+}
+function matchesAccount(account: LocalAccount, expected: LocalAccount) {
+  return account.username === expected.username && account.password === expected.password && account.role === expected.role && account.name === expected.name;
+}
+function isRetiredDefault(accounts: LocalAccount[]) {
+  return accounts.length === retiredDefaultAccounts.length && accounts.every((account, index) => matchesAccount(account, retiredDefaultAccounts[index]));
 }
 export function readLocalAccounts(): LocalAccount[] {
   if (typeof localStorage === "undefined") return defaultLocalAccounts;
-  try { return normalizeLocalAccounts(JSON.parse(localStorage.getItem(localAccountsKey) || "null")) ?? defaultLocalAccounts; } catch { return defaultLocalAccounts; }
+  try {
+    const stored = normalizeLocalAccounts(JSON.parse(localStorage.getItem(localAccountsKey) || "null"));
+    if (!stored || isRetiredDefault(stored)) {
+      if (stored) persistLocalAccounts(defaultLocalAccounts);
+      return defaultLocalAccounts;
+    }
+    return stored;
+  } catch { return defaultLocalAccounts; }
 }
 export function persistLocalAccounts(accounts: LocalAccount[]) { const next = normalizeLocalAccounts(accounts) ?? defaultLocalAccounts; rememberLocal(localAccountsKey, JSON.stringify(next)); return next; }
 export function authenticateLocal(username: string, password: string, accounts = readLocalAccounts()): LocalSession | null {
@@ -264,7 +282,7 @@ export function sortByName<T extends { name: string }>(items: T[]) { return [...
 export function skuToBarcodeValue(sku: string) { return sku.replace(/[^A-Za-z0-9]/g, ""); }
 export function isAdmin(role: UserRole) { return role === "admin"; }
 export function isCashier(role: UserRole) { return role === "cashier"; }
-export function initialsForRole(role: UserRole) { return role === "admin" ? "OM" : "MA"; }
+export function initialsForRole(_role: UserRole) { return "ZI"; }
 export function roleBadgeClass(role: UserRole) { return role === "admin" ? "bg-[#e5d5b5] text-[#5c4033]" : "bg-[#d8e2d5] text-[#2f3e34]"; }
 export function getCategoryColor(category: string) { return ({ Tableware: "#d9c7a3", Decor: "#b5c1ad", Serving: "#a47d5a", Accessories: "#e5d5b5" } as Record<string, string>)[category] || "#d9c7a3"; }
 export function isLikelySku(value: string) { return /^[A-Z0-9]+-[A-Z0-9]+-\d{4}$/.test(value.trim().toUpperCase()); }

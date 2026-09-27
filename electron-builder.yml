@@ -14,7 +14,9 @@ asar: true
 asarUnpack:
   - "**/node_modules/better-sqlite3/**/*"
 
-extraResources: []
+extraResources:
+  - from: electron/assets/icon.png
+    to: icon.png
 
 publish:
   - provider: github
@@ -28,6 +30,14 @@ linux:
     - AppImage
   category: Office
   icon: electron/assets/icon.png
+  executableName: gheir-pos
+  synopsis: GHEIR retail register
+  description: Point of sale for the GHEIR store.
+  desktop:
+    entry:
+      Name: GHEIR POS
+      Comment: GHEIR retail register
+      StartupWMClass: gheir-pos
 
 mac:
   target:
@@ -43,3 +53,13 @@ win:
   target:
     - nsis
   icon: electron/assets/icon.png
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: GHEIR POS
+  uninstallDisplayName: GHEIR POS
+  menuCategory: GHEIR POS

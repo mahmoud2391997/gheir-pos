@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authenticateLocal, bilingualText, createLocalDatabase, createProductSku, generateSkuRows, localizedText, normalizeLocalAccounts, ordersDocumentHtml, parseLocalDatabase, parseProductCsv, productCsv, roleCanAccess, salesCsv, skuLabelCsv } from "../shared/sku";
+import { authenticateLocal, bilingualText, createLocalDatabase, createProductSku, generateSkuRows, localAccountsKey, localizedText, normalizeLocalAccounts, ordersDocumentHtml, parseLocalDatabase, parseProductCsv, productCsv, readLocalAccounts, roleCanAccess, salesCsv, skuLabelCsv } from "../shared/sku";
 
 describe("GHEIR SKU rules", () => {
   it("composes a stable family, color extension, and unique copy serial", () => {
@@ -22,13 +22,41 @@ describe("GHEIR SKU rules", () => {
 
 describe("local register login", () => {
   it("accepts the store accounts and rejects anything else", () => {
-    expect(authenticateLocal("mariam", "cashier")).toMatchObject({ name: "Mariam Adel", role: "cashier" });
-    expect(authenticateLocal("Omar", "admin")).toMatchObject({ name: "Omar Nassar", role: "admin" });
-    expect(authenticateLocal("mariam", "admin")).toBeNull();
+    expect(authenticateLocal("ziad", "cashier")).toMatchObject({ name: "Ziad", role: "cashier" });
+    expect(authenticateLocal("Ziad", "admin")).toMatchObject({ name: "Ziad", role: "admin" });
+    expect(authenticateLocal("ziad", "wrong")).toBeNull();
     expect(authenticateLocal("guest", "cashier")).toBeNull();
     expect(authenticateLocal("lina", "counter", [{ username: "lina", password: "counter", name: "Lina Farid", role: "cashier" }, { username: "omar", password: "admin", name: "Omar Nassar", role: "admin" }])).toMatchObject({ name: "Lina Farid", role: "cashier" });
     expect(normalizeLocalAccounts([{ username: "lina", password: "counter", name: "Lina Farid", role: "cashier" }])).toBeNull();
-    expect(normalizeLocalAccounts([{ username: "same", password: "one", name: "Cashier", role: "cashier" }, { username: "same", password: "two", name: "Admin", role: "admin" }])).toBeNull();
+    expect(normalizeLocalAccounts([{ username: "ziad", password: "cashier", name: "Ziad", role: "cashier" }, { username: "ziad", password: "admin", name: "Ziad", role: "admin" }])).toMatchObject([{ role: "cashier" }, { role: "admin" }]);
+    expect(normalizeLocalAccounts([{ username: "same", password: "one", name: "Cashier", role: "cashier" }, { username: "same", password: "one", name: "Admin", role: "admin" }])).toBeNull();
+  });
+
+  it("replaces the retired default accounts with the production accounts", () => {
+    const memory = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => memory.get(key) ?? null,
+      setItem: (key: string, value: string) => { memory.set(key, value); },
+      removeItem: (key: string) => { memory.delete(key); },
+    };
+    Object.defineProperty(globalThis, "localStorage", { value: storage, configurable: true });
+    try {
+      localStorage.setItem(localAccountsKey, JSON.stringify([
+        { username: "mariam", password: "cashier", name: "Mariam Adel", role: "cashier" },
+        { username: "omar", password: "admin", name: "Omar Nassar", role: "admin" },
+      ]));
+      expect(readLocalAccounts().map((account) => [account.username, account.password, account.role])).toEqual([
+        ["ziad", "cashier", "cashier"],
+        ["ziad", "admin", "admin"],
+      ]);
+      localStorage.setItem(localAccountsKey, JSON.stringify([
+        { username: "lina", password: "counter", name: "Lina Farid", role: "cashier" },
+        { username: "omar", password: "admin", name: "Omar Nassar", role: "admin" },
+      ]));
+      expect(readLocalAccounts()[0]).toMatchObject({ username: "lina", role: "cashier" });
+    } finally {
+      Reflect.deleteProperty(globalThis, "localStorage");
+    }
   });
 });
 
@@ -40,7 +68,8 @@ describe("local database backup", () => {
     expect(restored?.sales[0]?.receiptNumber).toBe("GH-1");
     expect(restored?.settings.storeName).toBe("Atelier");
     expect(restored?.language).toBe("ar");
-    expect(restored?.accounts?.map((account) => account.username)).toEqual(["mariam", "omar"]);
+    expect(restored?.accounts?.map((account) => account.username)).toEqual(["ziad", "ziad"]);
+    expect(restored?.accounts?.map((account) => account.password)).toEqual(["cashier", "admin"]);
     const legacy = JSON.parse(JSON.stringify(database)) as { accounts?: unknown };
     delete legacy.accounts;
     expect(parseLocalDatabase(JSON.stringify(legacy))?.accounts).toBeUndefined();

@@ -25,6 +25,16 @@ declare const __dirname: string;
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
+
+function resolveAppIcon() {
+  const candidates = app.isPackaged
+    ? [path.join(process.resourcesPath, "icon.png")]
+    : [
+        path.join(__dirname, "../electron/assets/icon.png"),
+        path.join(__dirname, "assets/icon.png"),
+      ];
+  return candidates.find(file => fs.existsSync(file));
+}
 let localServer: HttpServer | null = null;
 let localServerUrl: string | null = null;
 
@@ -113,6 +123,7 @@ function registerIpc() {
           width: 480,
           height: 740,
           title: input.title || "Print",
+          icon: resolveAppIcon(),
           webPreferences: {
             contextIsolation: true,
             nodeIntegration: false,
@@ -160,6 +171,7 @@ async function createWindow() {
     minWidth: 1100,
     minHeight: 720,
     title: "GHEIR POS",
+    icon: resolveAppIcon(),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -218,6 +230,9 @@ async function startLocalServerIfNeeded() {
 }
 
 app.whenReady().then(async () => {
+  if (process.platform === "win32") app.setAppUserModelId("com.gheir.pos");
+  const icon = resolveAppIcon();
+  if (process.platform === "darwin" && icon) app.dock?.setIcon(icon);
   registerIpc();
   startSyncWorker();
   await startLocalServerIfNeeded();
