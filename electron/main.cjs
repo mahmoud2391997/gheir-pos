@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, nativeImage } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -31,11 +31,23 @@ ipcMain.handle("store:write-key", (_event, key, value) => {
   return true;
 });
 
+if (process.platform === "win32") app.setAppUserModelId("com.gheir.pos");
+
+function appIcon() {
+  const file = path.join(__dirname, "assets/icon.png");
+  if (!fs.existsSync(file)) return undefined;
+  const image = nativeImage.createFromPath(file);
+  return image.isEmpty() ? undefined : image;
+}
+
 function createWindow() {
+  const icon = appIcon();
+  if (process.platform === "darwin" && icon && app.dock) app.dock.setIcon(icon);
   const window = new BrowserWindow({
     width: 1440,
     height: 900,
     title: "GHEIR POS",
+    icon,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,

@@ -1,8 +1,9 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import { createServer, type Server as HttpServer } from "node:http";
 import path from "node:path";
 import { config as loadEnv } from "dotenv";
-import { app, BrowserWindow, ipcMain, session, shell } from "electron";
+import { app, BrowserWindow, ipcMain, nativeImage, session, shell } from "electron";
 import { autoUpdater } from "electron-updater";
 import express from "express";
 import { COOKIE_NAME } from "../shared/const";
@@ -24,6 +25,47 @@ loadEnv();
 declare const __dirname: string;
 
 const isDev = !app.isPackaged;
+
+if (process.platform === "win32") {
+  app.setAppUserModelId("com.gheir.pos");
+}
+
+function resolveAppIcon() {
+  const candidates = [
+    path.join(process.resourcesPath, "icon.png"),
+    path.join(__dirname, "../electron/assets/icon.png"),
+  ];
+  for (const file of candidates) {
+    if (!fs.existsSync(file)) continue;
+    const image = nativeImage.createFromPath(file);
+    if (!image.isEmpty()) return image;
+  }
+  return undefined;
+}
+
+function ensureLocalJwtSecret() {
+  const current = String(process.env.JWT_SECRET || "");
+  const placeholder = /replace-with|change-me|changeme|example/i.test(current);
+  if (current.length >= 32 && !placeholder) return;
+  const file = path.join(app.getPath("userData"), "register-secret");
+  let next = "";
+  try {
+    next = fs.readFileSync(file, "utf8").trim();
+  } catch {
+    next = "";
+  }
+  if (next.length < 32 || /replace-with|change-me|changeme|example/i.test(next)) {
+    next = crypto.randomBytes(32).toString("hex");
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, next, { encoding: "utf8", mode: 0o600 });
+    try {
+      fs.chmodSync(file, 0o600);
+    } catch {
+      // mode is best-effort on platforms that ignore chmod
+    }
+  }
+  process.env.JWT_SECRET = next;
+}
 let mainWindow: BrowserWindow | null = null;
 let localServer: HttpServer | null = null;
 let localServerUrl: string | null = null;
@@ -154,12 +196,14 @@ function registerIpc() {
 
 async function createWindow() {
   getDb();
+  const icon = resolveAppIcon();
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
     minWidth: 1100,
     minHeight: 720,
     title: "GHEIR POS",
+    icon,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -168,6 +212,8 @@ async function createWindow() {
       sandbox: false,
     },
   });
+
+  if (process.platform === "darwin" && icon) app.dock?.setIcon(icon);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url);
@@ -194,6 +240,8 @@ async function startLocalServerIfNeeded() {
   if (isDev) return;
   if (localServerUrl) return;
 
+  process.env.GHEIR_DESKTOP = "1";
+  ensureLocalJwtSecret();
   const apiApp = createApiApp();
 
   const staticDir = path.join(__dirname, "../dist/public");
