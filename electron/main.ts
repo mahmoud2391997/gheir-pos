@@ -200,16 +200,19 @@ function registerIpc() {
         );
         fs.writeFileSync(file, input.documentHtml, "utf8");
         try {
-          await win.loadFile(file);
-        } finally {
-          fs.rmSync(file, { force: true });
-        }
+			await win.loadFile(file);
+			// Wait for document fonts and layout before opening the native print dialog.
+			await win.webContents.executeJavaScript("document.fonts?.ready");
+		} finally {
+			fs.rmSync(file, { force: true });
+		}
 
-        const result = await new Promise<{ ok: boolean; error?: string }>(
-          resolve => {
-            win.webContents.print(
-              { silent: false, printBackground: true },
-              (success, failureReason) => {
+			const printWindow = win;
+			const result = await new Promise<{ ok: boolean; error?: string }>(
+				resolve => {
+					printWindow.webContents.print(
+					{ silent: false, printBackground: true, color: true },
+					(success, failureReason) => {
                 resolve(
                   success
                     ? { ok: true }

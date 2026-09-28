@@ -254,7 +254,13 @@ export function printHtmlDocument(title: string, documentHtml: string) {
   if (typeof window === "undefined") return;
   const bridge = (window as Window & { gheirPrint?: { printReceipt: (input: { title: string; documentHtml: string }) => Promise<unknown> } }).gheirPrint;
   if (bridge?.printReceipt) {
-    void bridge.printReceipt({ title, documentHtml }).catch(() => undefined);
+    void bridge.printReceipt({ title, documentHtml }).then(result => {
+      if (result && typeof result === "object" && "ok" in result && !result.ok) {
+        console.error("[GHEIR] Desktop print failed:", "error" in result ? result.error : "Unknown print error");
+      }
+    }).catch(error => {
+      console.error("[GHEIR] Desktop print failed:", error);
+    });
     return;
   }
   const printWindow = window.open("", "_blank", "width=960,height=720");
