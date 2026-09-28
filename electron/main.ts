@@ -207,11 +207,15 @@ function registerIpc() {
 			fs.rmSync(file, { force: true });
 		}
 
-			const printWindow = win;
-			const result = await new Promise<{ ok: boolean; error?: string }>(
-				resolve => {
-					printWindow.webContents.print(
-					{ silent: false, printBackground: true, color: true },
+        const printWindow = win;
+        // Electron cannot open the native print dialog reliably for a hidden
+        // BrowserWindow. Show the fully loaded print document before printing.
+        printWindow.show();
+        printWindow.focus();
+        const result = await new Promise<{ ok: boolean; error?: string }>(
+          resolve => {
+            printWindow.webContents.print(
+              { silent: false, printBackground: true, color: true },
 					(success, failureReason) => {
                 resolve(
                   success
