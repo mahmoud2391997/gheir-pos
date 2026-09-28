@@ -52,7 +52,7 @@ mac:
 win:
   target:
     - nsis
-  icon: electron/assets/icon.png
+  icon: electron/assets/icon.ico
 
 nsis:
   oneClick: false

@@ -3,7 +3,15 @@ import fs from "node:fs";
 import { createServer, type Server as HttpServer } from "node:http";
 import path from "node:path";
 import { config as loadEnv } from "dotenv";
-import { app, BrowserWindow, ipcMain, nativeImage, session, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  nativeImage,
+  session,
+  shell,
+  type WebContents,
+} from "electron";
 import { autoUpdater } from "electron-updater";
 import express from "express";
 import { COOKIE_NAME } from "../shared/const";
@@ -28,6 +36,24 @@ const isDev = !app.isPackaged;
 
 if (process.platform === "win32") {
   app.setAppUserModelId("com.gheir.pos");
+}
+
+function isHttpUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function denyBlankWindowOpens(contents: WebContents) {
+  contents.setWindowOpenHandler(({ url }) => {
+    // window.print() and window.open("") use about:blank. Opening that
+    // with the OS shell makes Windows look for an app named "about" and crash.
+    if (isHttpUrl(url)) void shell.openExternal(url).catch(() => undefined);
+    return { action: "deny" };
+  });
 }
 
 function resolveAppIcon() {
@@ -149,22 +175,35 @@ function registerIpc() {
   ipcMain.handle(
     "print:receipt",
     async (_event, input: { title: string; documentHtml: string }) => {
+      let win: BrowserWindow | null = null;
       try {
-        const win = new BrowserWindow({
+        if (!input || typeof input.documentHtml !== "string") {
+          return { ok: false, error: "Nothing to print" };
+        }
+        win = new BrowserWindow({
           show: false,
           width: 480,
           height: 740,
           title: input.title || "Print",
+          icon: resolveAppIcon(),
           webPreferences: {
             contextIsolation: true,
             nodeIntegration: false,
             sandbox: true,
-            partition: "persist:gheir-pos",
           },
         });
+        denyBlankWindowOpens(win.webContents);
 
-        const url = `data:text/html;charset=utf-8,${encodeURIComponent(input.documentHtml)}`;
-        await win.loadURL(url);
+        const file = path.join(
+          app.getPath("temp"),
+          `gheir-print-${Date.now()}.html`
+        );
+        fs.writeFileSync(file, input.documentHtml, "utf8");
+        try {
+          await win.loadFile(file);
+        } finally {
+          fs.rmSync(file, { force: true });
+        }
 
         const result = await new Promise<{ ok: boolean; error?: string }>(
           resolve => {
@@ -182,8 +221,10 @@ function registerIpc() {
         );
 
         win.close();
+        win = null;
         return result;
       } catch (error) {
+        if (win && !win.isDestroyed()) win.close();
         writeMainLog("print_failed", error);
         return {
           ok: false,
@@ -215,10 +256,7 @@ async function createWindow() {
 
   if (process.platform === "darwin" && icon) app.dock?.setIcon(icon);
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url);
-    return { action: "deny" };
-  });
+  denyBlankWindowOpens(mainWindow.webContents);
 
   if (isDev) {
     const devUrl = process.env.ELECTRON_START_URL || "http://localhost:3000";
@@ -264,6 +302,10 @@ async function startLocalServerIfNeeded() {
   localServerUrl = `http://127.0.0.1:${addr.port}`;
   writeMainLog("local_server_started", localServerUrl);
 }
+
+app.on("web-contents-created", (_event, contents) => {
+  denyBlankWindowOpens(contents);
+});
 
 app.whenReady().then(async () => {
   registerIpc();
