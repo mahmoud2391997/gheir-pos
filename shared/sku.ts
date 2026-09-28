@@ -81,7 +81,7 @@ export const appFooter = "GHEIR / 2026 · Store register";
 export const scannerMode = "keyboard wedge";
 export const printerPaper = "80mm thermal";
 export type SystemSettings = { storeName: string; storeAddress: string; taxPercent: number; receiptFooter: string; printerPaper: string };
-export const defaultSystemSettings: SystemSettings = { storeName, storeAddress, taxPercent: 14, receiptFooter: "Thank you for choosing GHEIR. · شكراً لاختياركم غ��ّر.", printerPaper };
+export const defaultSystemSettings: SystemSettings = { storeName, storeAddress, taxPercent: 14, receiptFooter: "Thank you for choosing GHEIR. · شكراً لاختياركم غيّر.", printerPaper };
 export const systemSettingsKey = "gheir-system-settings";
 export function normalizeSystemSettings(raw: Partial<SystemSettings> | null | undefined): SystemSettings {
   const taxPercent = Number(raw?.taxPercent);
@@ -89,7 +89,7 @@ export function normalizeSystemSettings(raw: Partial<SystemSettings> | null | un
     storeName: safeTrim(String(raw?.storeName || "")) || defaultSystemSettings.storeName,
     storeAddress: safeTrim(String(raw?.storeAddress || "")) || defaultSystemSettings.storeAddress,
     taxPercent: Number.isFinite(taxPercent) && taxPercent >= 0 ? taxPercent : defaultSystemSettings.taxPercent,
-    receiptFooter: (() => { const footer = safeTrim(String(raw?.receiptFooter || "")); return !footer || footer === "Thank you for choosing GHEIR." ? defaultSystemSettings.receiptFooter : footer; })(),
+    receiptFooter: (() => { const footer = safeTrim(String(raw?.receiptFooter || "")); return !footer || footer === "Thank you for choosing GHEIR." || footer.includes("\uFFFD") ? defaultSystemSettings.receiptFooter : footer; })(),
     printerPaper: safeTrim(String(raw?.printerPaper || "")) || defaultSystemSettings.printerPaper,
   };
 }
@@ -115,6 +115,16 @@ export async function hydrateDesktopStore() {
   if (!bridge) return;
   try {
     const stored = await bridge.readStore();
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith("gheir-") && stored[key] == null) {
+        const value = localStorage.getItem(key);
+        if (value != null) {
+          stored[key] = value;
+          void bridge.writeKey(key, value).catch(() => {});
+        }
+      }
+    }
     for (const [key, value] of Object.entries(stored)) {
       if (typeof value === "string") localStorage.setItem(key, value);
     }
@@ -253,9 +263,10 @@ export function createDemoSale(cart: Array<{ product: ProductRecord; quantity: n
 export function buildReceiptMarkup(sale: SaleRecord, logoUri?: string, settings?: Pick<SystemSettings, "storeName" | "storeAddress" | "receiptFooter">, language: AppLanguage = "en") { const moneyLocale = language === "ar" ? "ar-EG" : "en-EG"; const dateLocale = language === "ar" ? "ar" : "en"; const priced = (value: number) => formatMoney(value, moneyLocale); const escapeHtml = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); const heading = escapeHtml(settings?.storeName || "GHEIR"); const brandLine = escapeHtml(localizedText(language, appBrand.descriptor, appBrand.descriptorAr)); const addressLine = settings?.storeAddress ? `<br/>${escapeHtml(settings.storeAddress)}` : ""; const footerLine = escapeHtml(settings?.receiptFooter || defaultSystemSettings.receiptFooter); const logo = logoUri ? `<img class="logo" src="${logoUri}" alt="${heading}" />` : ""; const moneyLabel = (en: string, ar: string) => escapeHtml(localizedText(language, en, ar)); const discountRow = (sale.discount ?? 0) > 0 ? `<tr><td>${moneyLabel("DISCOUNT", "خصم")}</td><td style="text-align:right">-${priced(sale.discount ?? 0)}</td></tr>` : ""; const taxRow = (sale.tax ?? 0) > 0 ? `<tr><td>${moneyLabel("TAX", "ضريبة")}</td><td style="text-align:right">${priced(sale.tax ?? 0)}</td></tr>` : ""; const paidRow = sale.tendered != null ? `<div class="total">${moneyLabel("PAID", "المدفوع")} <span style="float:right">${priced(sale.tendered)}</span></div>` : ""; const changeRow = sale.change != null ? `<div class="total">${moneyLabel("CHANGE", "الباقي")} <span style="float:right">${priced(sale.change)}</span></div>` : ""; return `<div class="receipt">${logo}<h1>${heading}</h1><p>${brandLine}</p><p>${sale.receiptNumber}<br/>${formatDate(sale.createdAt, dateLocale)} · ${formatTime(sale.createdAt, dateLocale)}${addressLine}</p><hr/><table>${sale.items.map((item) => `<tr><td>${item.quantity} × ${escapeHtml(localizedText(language, item.name, item.arabicName))}</td><td style="text-align:right">${priced(item.total)}</td></tr>`).join("")}${discountRow}${taxRow}</table><div class="total">${moneyLabel("TOTAL", "الإجمالي")} <span style="float:right">${priced(sale.total)}</span></div>${paidRow}${changeRow}<hr/><p class="foot">${footerLine}</p><p class="foot">${escapeHtml(localizedPayment(sale.paymentMethod, language))}</p></div>`; }
 export function printHtmlDocument(title: string, documentHtml: string) {
   if (typeof window === "undefined") return;
+  const htmlWithCharset = documentHtml.replace(/<head([^>]*)>/i, '<head$1><meta charset="UTF-8">');
   const bridge = (window as Window & { gheirPrint?: { printReceipt: (input: { title: string; documentHtml: string }) => Promise<unknown> } }).gheirPrint;
   if (bridge?.printReceipt) {
-    void bridge.printReceipt({ title, documentHtml }).then(result => {
+    void bridge.printReceipt({ title, documentHtml: htmlWithCharset }).then(result => {
       if (result && typeof result === "object" && "ok" in result && !result.ok) {
         console.error("[GHEIR] Desktop print failed:", "error" in result ? result.error : "Unknown print error");
       }
@@ -266,7 +277,7 @@ export function printHtmlDocument(title: string, documentHtml: string) {
   }
   const printWindow = window.open("", "_blank", "width=960,height=720");
   if (!printWindow) return;
-  printWindow.document.write(documentHtml);
+  printWindow.document.write(htmlWithCharset);
   printWindow.document.close();
   printWindow.focus();
   printWindow.print();

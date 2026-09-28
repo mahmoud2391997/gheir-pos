@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { authenticateLocal, bilingualText, createLocalDatabase, createProductSku, demoProducts, demoSales, generateSkuRows, localizedText, normalizeLocalAccounts, ordersDocumentHtml, parseLocalDatabase, parseProductCsv, productCsv, readDemoProducts, readDemoSales, readLocalAccounts, roleCanAccess, salesCsv, skuLabelCsv } from "../shared/sku";
+import { authenticateLocal, bilingualText, createLocalDatabase, createProductSku, defaultSystemSettings, demoProducts, demoSales, generateSkuRows, hydrateDesktopStore, localizedText, normalizeLocalAccounts, normalizeSystemSettings, ordersDocumentHtml, parseLocalDatabase, parseProductCsv, printHtmlDocument, productCsv, readDemoProducts, readDemoSales, readLocalAccounts, roleCanAccess, salesCsv, skuLabelCsv } from "../shared/sku";
 
 describe("GHEIR SKU rules", () => {
   it("composes a stable family, color extension, and unique copy serial", () => {
@@ -65,6 +65,54 @@ describe("local database backup", () => {
     expect(localizedText("ar", "GHEIR", "غيّر")).toBe("غيّر");
     expect(parseProductCsv(productCsv([{ id: 4, name: "Mug", arabicName: "كوب", category: "Tableware", categoryAr: "أطباق", baseSku: "MUG", price: 50, stock: 2, color: "Clay", colorArabic: "طين", colorCode: "CLAY", shape: "round" }], "ar"))[0]).toMatchObject({ name: "Mug", arabicName: "كوب", categoryAr: "أطباق", colorArabic: "طين" });
     expect(parseProductCsv(productCsv([{ id: 4, name: "Mug", arabicName: "كوب", category: "Tableware", categoryAr: "أطباق", baseSku: "MUG", price: 50, stock: 2, color: "Clay", colorArabic: "طين", colorCode: "CLAY", shape: "round" }]))[0]).toMatchObject({ name: "Mug", arabicName: "كوب", categoryAr: "أطباق", colorArabic: "طين" });
+  });
+});
+
+describe("desktop persistence and receipt output", () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it("hydrates saved desktop data and migrates local GHEIR keys", async () => {
+    const values = new Map([
+      ["gheir-demo-products", "local products"],
+      ["gheir-demo-sales", "stale sales"],
+    ]);
+    const writeKey = vi.fn().mockResolvedValue(true);
+    vi.stubGlobal("localStorage", {
+      get length() { return values.size; },
+      key: (index: number) => [...values.keys()][index] ?? null,
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => { values.set(key, value); },
+      removeItem: (key: string) => { values.delete(key); },
+    });
+    vi.stubGlobal("window", {
+      gheirDesktop: {
+        readStore: vi.fn().mockResolvedValue({ "gheir-demo-sales": "saved sales" }),
+        writeKey,
+      },
+    });
+
+    await hydrateDesktopStore();
+
+    expect(values.get("gheir-demo-sales")).toBe("saved sales");
+    expect(writeKey).toHaveBeenCalledWith("gheir-demo-products", "local products");
+  });
+
+  it("adds UTF-8 metadata to desktop print documents", () => {
+    const printReceipt = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("window", { gheirPrint: { printReceipt } });
+
+    printHtmlDocument("Receipt", "<!doctype html><html><head><title>Receipt</title></head><body>شكراً</body></html>");
+
+    expect(printReceipt).toHaveBeenCalledWith(expect.objectContaining({
+      documentHtml: expect.stringContaining('<head><meta charset="UTF-8"><title>Receipt</title>'),
+    }));
+  });
+
+  it("replaces saved receipt footers containing broken Arabic characters", () => {
+    expect(normalizeSystemSettings({
+      ...defaultSystemSettings,
+      receiptFooter: "شكراً لاختياركم غ��ّر.",
+    }).receiptFooter).toBe(defaultSystemSettings.receiptFooter);
   });
 });
 

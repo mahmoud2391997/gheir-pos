@@ -1,5 +1,14 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+const desktop = {
+  readStore: () =>
+    ipcRenderer.invoke("store:read") as Promise<Record<string, string>>,
+  writeKey: (key: string, value: string | null) =>
+    ipcRenderer.invoke("store:write-key", key, value) as Promise<boolean>,
+};
+
+contextBridge.exposeInMainWorld("gheirDesktop", desktop);
+
 export type PendingSalePayload = {
   clientSaleId: string;
   deviceId?: string;
@@ -63,3 +72,12 @@ const print = {
 };
 
 contextBridge.exposeInMainWorld("gheirPrint", print);
+
+contextBridge.exposeInMainWorld("gheirPrintPreview", {
+  print: () =>
+    ipcRenderer.invoke("print:preview-print") as Promise<{
+      ok: boolean;
+      error?: string;
+    }>,
+  close: () => ipcRenderer.invoke("print:preview-close") as Promise<{ ok: boolean }>,
+});

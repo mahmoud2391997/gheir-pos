@@ -49,11 +49,33 @@ function isHttpUrl(url: string) {
 
 function denyBlankWindowOpens(contents: WebContents) {
   contents.setWindowOpenHandler(({ url }) => {
-    // window.print() and window.open("") use about:blank. Opening that
-    // with the OS shell makes Windows look for an app named "about" and crash.
-    if (isHttpUrl(url)) void shell.openExternal(url).catch(() => undefined);
+    // http(s) links leave the app. about:blank stays inside Electron so
+    // Windows is never asked to open an app named "about".
+    if (isHttpUrl(url)) {
+      void shell.openExternal(url).catch(() => undefined);
+      return { action: "deny" };
+    }
+    if (!url || url === "about:blank") return { action: "allow" };
     return { action: "deny" };
   });
+}
+
+function withPrintBar(documentHtml: string) {
+  const bar = `<style>
+.gheir-print-bar{position:sticky;top:0;z-index:20;display:flex;justify-content:flex-end;gap:8px;padding:10px 12px;background:#2f3e34;font-family:Arial,sans-serif}
+.gheir-print-bar button{border:0;border-radius:10px;padding:8px 16px;font-size:14px;font-weight:700;cursor:pointer}
+.gheir-print-bar .print{background:#f2ead8;color:#2f3e34}
+.gheir-print-bar .close{background:transparent;color:#f2ead8}
+@media print{.gheir-print-bar{display:none!important}}
+</style>
+<div class="gheir-print-bar">
+<button class="print" type="button" onclick="window.print()">Print · طباعة</button>
+<button class="close" type="button" onclick="if(window.gheirPrintPreview){window.gheirPrintPreview.close()}else{window.close()}">Close · إغلاق</button>
+</div>`;
+  if (/<body[^>]*>/i.test(documentHtml)) {
+    return documentHtml.replace(/<body([^>]*)>/i, `<body$1>${bar}`);
+  }
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>${bar}${documentHtml}</body></html>`;
 }
 
 function resolveAppIcon() {
@@ -95,6 +117,32 @@ function ensureLocalJwtSecret() {
 let mainWindow: BrowserWindow | null = null;
 let localServer: HttpServer | null = null;
 let localServerUrl: string | null = null;
+
+function readDesktopStore(): Record<string, string> {
+  const file = path.join(app.getPath("userData"), "gheir-store.json");
+  try {
+    const value = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(
+      Object.entries(value).filter((entry): entry is [string, string] =>
+        typeof entry[1] === "string"
+      )
+    );
+  } catch {
+    return {};
+  }
+}
+
+function writeDesktopStoreKey(key: string, value: string | null) {
+  if (!key.startsWith("gheir-")) return false;
+  const file = path.join(app.getPath("userData"), "gheir-store.json");
+  const store = readDesktopStore();
+  if (value == null) delete store[key];
+  else store[key] = value;
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(store), "utf8");
+  return true;
+}
 
 function setupAutoUpdate() {
   if (isDev) return;
@@ -143,6 +191,13 @@ function writeMainLog(event: string, detail: unknown) {
 }
 
 function registerIpc() {
+  ipcMain.handle("store:read", () => readDesktopStore());
+  ipcMain.handle("store:write-key", (_event, key, value) => {
+    if (typeof key !== "string" || (value !== null && typeof value !== "string")) {
+      return false;
+    }
+    return writeDesktopStoreKey(key, value);
+  });
   ipcMain.handle("inventory:isConfigured", () => secretsConfigured());
   ipcMain.handle("inventory:getProducts", async () =>
     getProducts({ preferDelta: true })
@@ -172,6 +227,26 @@ function registerIpc() {
     return { cleared };
   });
 
+  ipcMain.handle("print:preview-print", async event => {
+    const contents = event.sender;
+    const owner = BrowserWindow.fromWebContents(contents);
+    if (!owner || owner.isDestroyed()) {
+      return { ok: false, error: "Print window closed" };
+    }
+    owner.show();
+    owner.focus();
+    // contents.print() on Windows shows the document and never the dialog.
+    // window.print() opens the system print dialog, including its Print button.
+    await contents.executeJavaScript("window.print()");
+    return { ok: true };
+  });
+
+  ipcMain.handle("print:preview-close", event => {
+    const owner = BrowserWindow.fromWebContents(event.sender);
+    if (owner && !owner.isDestroyed()) owner.close();
+    return { ok: true };
+  });
+
   ipcMain.handle(
     "print:receipt",
     async (_event, input: { title: string; documentHtml: string }) => {
@@ -182,14 +257,16 @@ function registerIpc() {
         }
         win = new BrowserWindow({
           show: false,
-          width: 480,
-          height: 740,
+          width: 520,
+          height: 780,
           title: input.title || "Print",
+          autoHideMenuBar: true,
           icon: resolveAppIcon(),
           webPreferences: {
+            preload: path.join(__dirname, "preload.cjs"),
             contextIsolation: true,
             nodeIntegration: false,
-            sandbox: true,
+            sandbox: false,
           },
         });
         denyBlankWindowOpens(win.webContents);
@@ -198,38 +275,16 @@ function registerIpc() {
           app.getPath("temp"),
           `gheir-print-${Date.now()}.html`
         );
-        fs.writeFileSync(file, input.documentHtml, "utf8");
+        fs.writeFileSync(file, withPrintBar(input.documentHtml), "utf8");
         try {
-			await win.loadFile(file);
-			// Wait for document fonts and layout before opening the native print dialog.
-			await win.webContents.executeJavaScript("document.fonts?.ready");
-		} finally {
-			fs.rmSync(file, { force: true });
-		}
+          await win.loadFile(file);
+        } finally {
+          fs.rmSync(file, { force: true });
+        }
 
-        const printWindow = win;
-        // Electron cannot open the native print dialog reliably for a hidden
-        // BrowserWindow. Show the fully loaded print document before printing.
-        printWindow.show();
-        printWindow.focus();
-        const result = await new Promise<{ ok: boolean; error?: string }>(
-          resolve => {
-            printWindow.webContents.print(
-              { silent: false, printBackground: true, color: true },
-					(success, failureReason) => {
-                resolve(
-                  success
-                    ? { ok: true }
-                    : { ok: false, error: failureReason || "Print failed" }
-                );
-              }
-            );
-          }
-        );
-
-        win.close();
-        win = null;
-        return result;
+        win.show();
+        win.focus();
+        return { ok: true };
       } catch (error) {
         if (win && !win.isDestroyed()) win.close();
         writeMainLog("print_failed", error);

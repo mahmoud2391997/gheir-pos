@@ -44,10 +44,47 @@ function isHttpUrl(url) {
 
 function denyBlankWindowOpens(contents) {
   contents.setWindowOpenHandler(({ url }) => {
-    if (isHttpUrl(url)) void shell.openExternal(url).catch(() => undefined);
+    if (isHttpUrl(url)) {
+      void shell.openExternal(url).catch(() => undefined);
+      return { action: "deny" };
+    }
+    if (!url || url === "about:blank") return { action: "allow" };
     return { action: "deny" };
   });
 }
+
+function withPrintBar(documentHtml) {
+  const bar = `<style>
+.gheir-print-bar{position:sticky;top:0;z-index:20;display:flex;justify-content:flex-end;gap:8px;padding:10px 12px;background:#2f3e34;font-family:Arial,sans-serif}
+.gheir-print-bar button{border:0;border-radius:10px;padding:8px 16px;font-size:14px;font-weight:700;cursor:pointer}
+.gheir-print-bar .print{background:#f2ead8;color:#2f3e34}
+.gheir-print-bar .close{background:transparent;color:#f2ead8}
+@media print{.gheir-print-bar{display:none!important}}
+</style>
+<div class="gheir-print-bar">
+<button class="print" type="button" onclick="window.print()">Print · طباعة</button>
+<button class="close" type="button" onclick="if(window.gheirPrintPreview){window.gheirPrintPreview.close()}else{window.close()}">Close · إغلاق</button>
+</div>`;
+  if (/<body[^>]*>/i.test(documentHtml)) {
+    return documentHtml.replace(/<body([^>]*)>/i, `<body$1>${bar}`);
+  }
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>${bar}${documentHtml}</body></html>`;
+}
+
+ipcMain.handle("print:preview-print", async (event) => {
+  const owner = BrowserWindow.fromWebContents(event.sender);
+  if (!owner || owner.isDestroyed()) return { ok: false, error: "Print window closed" };
+  owner.show();
+  owner.focus();
+  await event.sender.executeJavaScript("window.print()");
+  return { ok: true };
+});
+
+ipcMain.handle("print:preview-close", (event) => {
+  const owner = BrowserWindow.fromWebContents(event.sender);
+  if (owner && !owner.isDestroyed()) owner.close();
+  return { ok: true };
+});
 
 ipcMain.handle("print:receipt", async (_event, input) => {
   let win = null;
@@ -57,31 +94,29 @@ ipcMain.handle("print:receipt", async (_event, input) => {
     }
     win = new BrowserWindow({
       show: false,
-      width: 480,
-      height: 740,
+      width: 520,
+      height: 780,
       title: input.title || "Print",
+      autoHideMenuBar: true,
       icon: appIcon(),
       webPreferences: {
+        preload: path.join(__dirname, "preload.cjs"),
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: true,
+        sandbox: false,
       },
     });
     denyBlankWindowOpens(win.webContents);
     const file = path.join(app.getPath("temp"), `gheir-print-${Date.now()}.html`);
-    fs.writeFileSync(file, input.documentHtml, "utf8");
+    fs.writeFileSync(file, withPrintBar(input.documentHtml), "utf8");
     try {
       await win.loadFile(file);
     } finally {
       fs.rmSync(file, { force: true });
     }
-    const result = await new Promise((resolve) => {
-      win.webContents.print({ silent: false, printBackground: true }, (success, failureReason) => {
-        resolve(success ? { ok: true } : { ok: false, error: failureReason || "Print failed" });
-      });
-    });
-    win.close();
-    return result;
+    win.show();
+    win.focus();
+    return { ok: true };
   } catch (error) {
     if (win && !win.isDestroyed()) win.close();
     return { ok: false, error: error instanceof Error ? error.message : String(error) };

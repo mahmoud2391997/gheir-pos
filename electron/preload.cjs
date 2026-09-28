@@ -8,3 +8,8 @@ contextBridge.exposeInMainWorld("gheirDesktop", {
 contextBridge.exposeInMainWorld("gheirPrint", {
   printReceipt: (input) => ipcRenderer.invoke("print:receipt", input),
 });
+
+contextBridge.exposeInMainWorld("gheirPrintPreview", {
+  print: () => ipcRenderer.invoke("print:preview-print"),
+  close: () => ipcRenderer.invoke("print:preview-close"),
+});
