@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addCashMovement, addCustomer, addExpense, addSupplier, adjustStock, applyRefundToProducts, applySaleToCustomer, closeShift, createRefund, currentShift, customerStats, emptyExtras, normalizeExtras, openShift, pointsForTotal, pointsToReverse, profitSummary, receivePurchase, refundStatus, refundableLines, resolveTenders, shiftSummary, type PosExtras, type RefundRecord } from "../shared/pos";
-import type { ProductRecord, SaleRecord } from "../shared/sku";
+import { createLocalDatabase, defaultSystemSettings, parseLocalDatabase, type ProductRecord, type SaleRecord } from "../shared/sku";
 
 const product = (id: number, stock: number, cost = 10): ProductRecord => ({ id, name: `P${id}`, category: "C", baseSku: `P${id}`, price: 100, cost, stock, color: "Clay", colorCode: "CLAY", shape: "round" });
 const sale = (over: Partial<SaleRecord> = {}): SaleRecord => ({ id: 1, receiptNumber: "GH-1", total: 270, discount: 30, tax: 0, paymentMethod: "cash", items: [{ productId: 1, name: "P1", quantity: 2, total: 200, costTotal: 20 }, { productId: 2, name: "P2", quantity: 1, total: 100, costTotal: 10 }], createdAt: new Date().toISOString(), ...over });
@@ -124,5 +124,15 @@ describe("persistence normalisation", () => {
     expect(cleaned.customers).toHaveLength(1);
     expect(cleaned.customers[0].points).toBe(0);
     expect(cleaned.loyalty.spendPerPoint).toBe(100);
+  });
+});
+
+describe("backup", () => {
+  it("round-trips POS extras and split payments through export and import", () => {
+    const supplied = addSupplier(emptyExtras, { name: "Clay Co" }, "Admin"); if (!supplied.ok) throw new Error("supplier");
+    const split = sale({ payments: [{ method: "cash", amount: 170 }, { method: "wallet", amount: 100 }], customerId: 3 });
+    const restored = parseLocalDatabase(JSON.stringify(createLocalDatabase({ products: [], sales: [split], settings: defaultSystemSettings, language: "en", extras: supplied.extras })));
+    expect(restored?.sales[0].payments).toHaveLength(2);
+    expect(normalizeExtras(restored?.extras).suppliers[0].name).toBe("Clay Co");
   });
 });
