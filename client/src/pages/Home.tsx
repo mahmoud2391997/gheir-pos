@@ -18,6 +18,7 @@ const paymentAr: Record<PaymentMethod, { label: string; detail: string }> = {
   cash: { label: "نقداً", detail: "تحصيل عند الكاشير" },
   card: { label: "بطاقة", detail: "دفع عبر الماكينة" },
   instapay: { label: "إنستاباي", detail: "تحويل بالرمز QR" },
+  wallet: { label: "محفظة", detail: "محفظة إلكترونية" },
 };
 const stockAr: Record<string, string> = { "In stock": "متوفر", Watch: "تحت المراقبة", "Low stock": "مخزون منخفض" };
 const roleLabelAr: Record<UserRole, string> = { cashier: "أمين الصندوق", admin: "المدير" };

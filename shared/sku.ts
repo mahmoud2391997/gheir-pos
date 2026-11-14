@@ -1,9 +1,9 @@
 export type UserRole = "admin" | "cashier";
-export type PaymentMethod = "cash" | "card" | "instapay";
-export type AppSection = "register" | "orders" | "catalog" | "sku" | "reports" | "settings";
+export type PaymentMethod = "cash" | "card" | "instapay" | "wallet";
+export type AppSection = "register" | "orders" | "customers" | "shift" | "catalog" | "purchasing" | "stock" | "sku" | "reports" | "settings";
 
 export type ProductRecord = { id: number; name: string; arabicName?: string | null; englishName?: string | null; category: string; categoryAr?: string | null; baseSku: string; price: number; cost?: number; stock: number; color: string; colorArabic?: string | null; colorCode: string; shape: string; barcode?: string; image?: string | null; active?: boolean };
-export type SaleRecord = { id: number; receiptNumber: string; total: number; discount: number; tax: number; tendered?: number | null; change?: number | null; paymentMethod: PaymentMethod; items: Array<{ productId?: number; color?: string; colorArabic?: string | null; name: string; arabicName?: string | null; category?: string | null; quantity: number; total: number; costTotal?: number }>; createdAt: string };
+export type SaleRecord = { id: number; receiptNumber: string; total: number; discount: number; tax: number; tendered?: number | null; change?: number | null; paymentMethod: PaymentMethod; payments?: Array<{ method: PaymentMethod; amount: number }>; customerId?: number | null; customerName?: string | null; cashier?: string | null; pointsEarned?: number; pointsRedeemed?: number; items: Array<{ productId?: number; color?: string; colorArabic?: string | null; name: string; arabicName?: string | null; category?: string | null; quantity: number; total: number; costTotal?: number }>; createdAt: string };
 export type DashboardSummary = { todaySales: number; completedSales: number; averageOrder: number; lowStockItems: number };
 export type SkuRow = { sku: string; name: string; arabicName?: string | null; color: string; colorArabic?: string | null; price: number };
 
@@ -23,20 +23,24 @@ export function localizedText(language: AppLanguage, english?: string | null, ar
   return en || ar;
 }
 export function localizedPayment(method: PaymentMethod, language: AppLanguage = "en") {
-  const arabic: Record<PaymentMethod, string> = { cash: "نقداً", card: "بطاقة", instapay: "إنستاباي" };
+  const arabic: Record<PaymentMethod, string> = { cash: "نقداً", card: "بطاقة", instapay: "إنستاباي", wallet: "محفظة" };
   return localizedText(language, paymentLabels[method], arabic[method]);
 }
 export function bilingualPayment(method: PaymentMethod) {
-  const arabic: Record<PaymentMethod, string> = { cash: "نقداً", card: "بطاقة", instapay: "إنستاباي" };
+  const arabic: Record<PaymentMethod, string> = { cash: "نقداً", card: "بطاقة", instapay: "إنستاباي", wallet: "محفظة" };
   return bilingualText(paymentLabels[method], arabic[method]);
 }
 export const categories = ["All", "Tableware", "Decor", "Serving", "Accessories"] as const;
-export const paymentLabels: Record<PaymentMethod, string> = { cash: "Cash", card: "Card", instapay: "InstaPay" };
-export const paymentDetails: Record<PaymentMethod, string> = { cash: "Collected at counter", card: "Terminal payment", instapay: "QR transfer" };
+export const paymentLabels: Record<PaymentMethod, string> = { cash: "Cash", card: "Card", instapay: "InstaPay", wallet: "Wallet" };
+export const paymentDetails: Record<PaymentMethod, string> = { cash: "Collected at counter", card: "Terminal payment", instapay: "QR transfer", wallet: "Mobile wallet" };
 export const appSections: Array<{ id: AppSection; label: string; arabicLabel: string; caption: string; arabicCaption: string }> = [
   { id: "register", label: "Register", arabicLabel: "نقطة البيع", caption: "Sell at the counter", arabicCaption: "إتمام المبيعات" },
   { id: "orders", label: "Orders", arabicLabel: "الطلبات", caption: "Sales history", arabicCaption: "سجل المبيعات" },
+  { id: "customers", label: "Customers", arabicLabel: "العملاء", caption: "Profiles & loyalty", arabicCaption: "الملفات والولاء" },
+  { id: "shift", label: "Shift & cash", arabicLabel: "الوردية والنقدية", caption: "Drawer and day close", arabicCaption: "الدرج وإقفال اليوم" },
   { id: "catalog", label: "Catalog", arabicLabel: "المنتجات", caption: "Products & stock", arabicCaption: "المنتجات والمخزون" },
+  { id: "purchasing", label: "Purchasing", arabicLabel: "المشتريات", caption: "Suppliers, stock-in, expenses", arabicCaption: "الموردون والتوريد والمصروفات" },
+  { id: "stock", label: "Stock control", arabicLabel: "مراقبة المخزون", caption: "Adjustments & audit log", arabicCaption: "التسويات وسجل العمليات" },
   { id: "sku", label: "SKU Lab", arabicLabel: "معمل الأكواد", caption: "Export product labels", arabicCaption: "تصدير ملصقات المنتجات" },
   { id: "reports", label: "Reports", arabicLabel: "التقارير", caption: "Sales and stock", arabicCaption: "المبيعات والمخزون" },
   { id: "settings", label: "System settings", arabicLabel: "إعدادات النظام", caption: "Store and receipt defaults", arabicCaption: "إعدادات المتجر والإيصال" },
@@ -288,7 +292,7 @@ export function openPrintWindow(title: string, html: string) {
   const safeTitle = title.replace(/[<>&]/g, "");
   printHtmlDocument(title, `<!DOCTYPE html><html><head><title>${safeTitle}</title><style>@page{margin:0}*{box-sizing:border-box}body{font-family:'Courier New',Courier,monospace;width:302px;margin:0 auto;padding:16px 0;background:#fff;color:#111;font-size:22px}.receipt{text-align:center;font-weight:bold}.logo{display:block;width:auto;max-width:140px;max-height:42px;margin:0 auto 6px}.logo img{object-fit:contain}h1{font-family:Georgia,serif;letter-spacing:.14em;font-size:36px;text-align:center;margin:6px 0 2px;font-weight:bold}p{font-size:22px;color:#333;text-align:center;margin:4px 0;font-weight:bold}hr{border:none;border-top:1px dashed #999;margin:10px 0}table{width:100%;border-collapse:collapse;text-align:center}td{padding:4px 0;font-size:22px;vertical-align:top;font-weight:bold}.total{font-weight:900;font-size:26px;margin-top:10px;text-align:center}.foot{font-size:22px;text-align:center;font-weight:bold}</style></head><body>${html}</body></html>`);
 }
-export function roleCanAccess(role: UserRole, section: AppSection) { return role === "admin" || section === "register" || section === "orders"; }
+export function roleCanAccess(role: UserRole, section: AppSection) { return role === "admin" || section === "register" || section === "orders" || section === "customers" || section === "shift"; }
 export function persistDemoSales(sales: SaleRecord[]) { rememberLocal("gheir-demo-sales", JSON.stringify(sales)); }
 function readStoredList<T>(key: string): T[] | null {
   if (typeof localStorage === "undefined") return null;
@@ -340,7 +344,7 @@ export function makeBarcodeText(sku: string) { return sku.replaceAll("-", ""); }
 export function hasPermission(role: UserRole, section: AppSection) { return roleCanAccess(role, section); }
 export function normalizeProduct(record: Partial<ProductRecord> & { id: number; name: string }): ProductRecord { const image = typeof record.image === "string" && record.image.startsWith("data:image/") ? record.image : null; return { id: record.id, name: record.name, arabicName: record.arabicName ?? null, category: record.category ?? "Uncategorized", categoryAr: record.categoryAr ?? null, baseSku: record.baseSku ?? "ITEM", price: Number(record.price ?? 0), cost: Number(record.cost ?? 0), stock: Number(record.stock ?? 0), color: record.color ?? "Natural", colorArabic: record.colorArabic ?? null, colorCode: record.colorCode ?? "NAT", shape: record.shape ?? "handmade", barcode: record.barcode, image, active: record.active ?? true }; }
 export function getLowStock(products: ProductRecord[]) { return products.filter((product) => product.stock <= 3); }
-export function isPaymentMethod(value: string): value is PaymentMethod { return ["cash", "card", "instapay"].includes(value); }
+export function isPaymentMethod(value: string): value is PaymentMethod { return ["cash", "card", "instapay", "wallet"].includes(value); }
 export function makeSkuFile(rows: SkuRow[]) { return { filename: toCsvFilename(), csv: skuLabelCsv(rows), count: rows.length }; }
 export function formatSkuSerial(serial: number) { return String(serial).padStart(4, "0"); }
 export function buildFamilyLabel(baseSku: string, colorCode: string) { return `${normalizeSkuPart(baseSku)}-${normalizeSkuPart(colorCode)}`; }
