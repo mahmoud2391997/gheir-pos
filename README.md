@@ -128,3 +128,16 @@ Required (outside this repo):
 
 Environment variables (commonly used by electron-builder):
 - `CSC_LINK` / `CSC_KEY_PASSWORD`
+
+## Vercel demo (static, no database)
+
+The register, orders, customers, shifts, purchasing and stock screens run fully in the browser (data lives in
+`localStorage`), so the demo needs **no `DATABASE_URL` and no backend**. `vercel.json` builds only the web client.
+
+```bash
+pnpm dlx vercel        # preview
+pnpm dlx vercel --prod # production
+```
+
+Or import the repo in the Vercel dashboard — the settings come from `vercel.json`. Demo logins: `ziad / cashier`
+(cashier) and `ziad / admin` (admin). Data is per-browser; use **Settings → Reset** to start clean.

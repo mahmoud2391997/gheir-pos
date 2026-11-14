@@ -14,8 +14,8 @@ describe("GHEIR SKU rules", () => {
 
   it("exports printer-friendly CSV with a header and escaped values", () => {
     const csv = skuLabelCsv([{ sku: "VASE-CLAY-0007", name: "Sculpted Vessel", arabicName: "إناء منحوت", color: "Clay", colorArabic: "طين", price: 1850 }]);
-    expect(csv).toContain("SKU,Product English,Product Arabic,Color English,Color Arabic,Price");
-    expect(skuLabelCsv([{ sku: "VASE-CLAY-0007", name: "Sculpted Vessel", arabicName: "إناء منحوت", color: "Clay", colorArabic: "طين", price: 1850 }], "ar")).toContain("SKU,المنتج بالإنجليزية,المنتج بالعربية,اللون بالإنجليزية,اللون بالعربية,السعر");
+    expect(csv).toContain("SKU,Product English · المنتج بالإنجليزية,Product Arabic · المنتج بالعربية,Color English · اللون بالإنجليزية,Color Arabic · اللون بالعربية,Price · السعر");
+    expect(skuLabelCsv([{ sku: "VASE-CLAY-0007", name: "Sculpted Vessel", arabicName: "إناء منحوت", color: "Clay", colorArabic: "طين", price: 1850 }], "ar")).toContain("SKU,Product English · المنتج بالإنجليزية,Product Arabic · المنتج بالعربية");
     expect(csv).toContain('"VASE-CLAY-0007","Sculpted Vessel","إناء منحوت","Clay","طين","1850.00"');
   });
 });
@@ -54,12 +54,12 @@ describe("local database backup", () => {
     expect(salesCsv(database.sales)).toContain("GH-1");
     expect(salesCsv(database.sales)).toContain("1x Mug");
     expect(salesCsv([{ ...database.sales[0], items: [{ name: "Mug", arabicName: "كوب", quantity: 1, total: 50 }] }])).toContain("1x Mug");
-    expect(salesCsv([{ ...database.sales[0], items: [{ name: "Mug", arabicName: "كوب", quantity: 1, total: 50 }] }], "ar")).toContain("1x كوب");
+    expect(salesCsv([{ ...database.sales[0], items: [{ name: "Mug", arabicName: "كوب", quantity: 1, total: 50 }] }], "ar")).toContain("1x Mug · كوب");
     expect(salesCsv(database.sales)).toContain("Cash");
     expect(salesCsv(database.sales, "ar")).toContain("نقداً");
     expect(ordersDocumentHtml(database.sales, "Atelier")).toContain("Atelier — orders");
     expect(ordersDocumentHtml(database.sales, "Atelier", "ar")).toContain("الطلبات");
-    expect(ordersDocumentHtml(database.sales, "Atelier")).not.toContain("orders · الطلبات");
+    expect(ordersDocumentHtml(database.sales, "Atelier")).toContain("orders · الطلبات");
     expect(bilingualText("GHEIR", "غيّر")).toBe("GHEIR · غيّر");
     expect(localizedText("en", "GHEIR", "غيّر")).toBe("GHEIR");
     expect(localizedText("ar", "GHEIR", "غيّر")).toBe("غيّر");
