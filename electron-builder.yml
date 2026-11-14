@@ -52,7 +52,8 @@ mac:
 win:
   target:
     - nsis
-  icon: electron/assets/icon.png
+  icon: electron/assets/icon.ico
+  artifactName: GHEIR-POS-Setup-${version}.${ext}
 
 nsis:
   oneClick: false
