@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addCashMovement, addCustomer, applyRefundToProducts, applySaleToCustomer, closeShift, createRefund, currentShift, customerStats, emptyExtras, normalizeExtras, openShift, pointsForTotal, pointsToReverse, profitSummary, refundStatus, refundableLines, resolveTenders, shiftSummary, type PosExtras, type RefundRecord } from "../shared/pos";
+import { allMethods, methodsInUse, addCashMovement, addCustomer, applyRefundToProducts, applySaleToCustomer, closeShift, createRefund, currentShift, customerStats, emptyExtras, normalizeExtras, openShift, pointsForTotal, pointsToReverse, profitSummary, refundStatus, refundableLines, resolveTenders, shiftSummary, type PosExtras, type RefundRecord } from "../shared/pos";
 import { createLocalDatabase, defaultSystemSettings, parseLocalDatabase, type ProductRecord, type SaleRecord } from "../shared/sku";
 
 const product = (id: number, stock: number, cost = 10): ProductRecord => ({ id, name: `P${id}`, category: "C", baseSku: `P${id}`, price: 100, cost, stock, color: "Clay", colorCode: "CLAY", shape: "round" });
@@ -115,5 +115,17 @@ describe("backup", () => {
     const restored = parseLocalDatabase(JSON.stringify(createLocalDatabase({ products: [], sales: [split], settings: defaultSystemSettings, language: "en", extras: opened.extras })));
     expect(restored?.sales[0].payments).toHaveLength(2);
     expect(normalizeExtras(restored?.extras).shifts[0].openingCash).toBe(100);
+  });
+});
+
+describe("card payments retired", () => {
+  it("is no longer offered but legacy card records still load and report", () => {
+    expect(allMethods).not.toContain("card");
+    const none = { cash: 0, card: 0, instapay: 0, wallet: 0 };
+    expect(methodsInUse(none)).toEqual(allMethods);
+    expect(methodsInUse({ ...none, card: 50 })).toContain("card");
+    const legacy = normalizeExtras({ refunds: [{ id: 1, saleId: 1, receiptNumber: "GH-1", items: [], amount: 5, method: "card", reason: "old", by: "Z", createdAt: new Date().toISOString() }] });
+    expect(legacy.refunds[0].method).toBe("card");
+    expect(resolveTenders(100, [{ method: "card", amount: 100 }])).toMatchObject({ ok: true, primary: "card" });
   });
 });

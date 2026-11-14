@@ -6,7 +6,7 @@ import { ErrorLine, Field, Modal, btnPrimary, btnSoft, esc, inputCls, makeTr, me
 export default function RefundDialog({ sale, refunds, open, onClose, onRefund, isArabic, userName, storeName }: { sale: SaleRecord | null; refunds: RefundRecord[]; open: boolean; onClose: () => void; onRefund: (refund: RefundRecord, pointsReversed: number) => void; isArabic: boolean; userName: string; storeName: string }) {
   const t = makeTr(isArabic); const money = useMoney(isArabic);
   const [qty, setQty] = useState<Record<number, number>>({}); const [restock, setRestock] = useState<Record<number, boolean>>({}); const [method, setMethod] = useState<PaymentMethod>("cash"); const [reason, setReason] = useState(""); const [error, setError] = useState(""); const [done, setDone] = useState<RefundRecord | null>(null);
-  useEffect(() => { setQty({}); setRestock({}); setReason(""); setError(""); setDone(null); setMethod(sale ? salePayments(sale)[0]?.method ?? "cash" : "cash"); }, [sale?.id, open]);
+  useEffect(() => { setQty({}); setRestock({}); setReason(""); setError(""); setDone(null); const first = sale ? salePayments(sale)[0]?.method : undefined; setMethod(first && allMethods.includes(first) ? first : "cash"); }, [sale?.id, open]);
   if (!sale) return null;
   const lines = refundableLines(sale, refunds); const status = refundStatus(sale, refunds); const already = refundedAmount(sale, refunds);
   const selections: RefundSelection[] = lines.map((line) => ({ index: line.index, quantity: qty[line.index] ?? 0, restock: restock[line.index] ?? true }));

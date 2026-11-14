@@ -14,14 +14,18 @@ export type PosExtras = { customers: Customer[]; refunds: RefundRecord[]; shifts
 export const defaultLoyalty: LoyaltySettings = { enabled: true, spendPerPoint: 100, pointValue: 1 };
 export const emptyExtras: PosExtras = { customers: [], refunds: [], shifts: [], audit: [], loyalty: defaultLoyalty };
 export const posExtrasKey = "gheir-pos-extras";
-export const allMethods: PaymentMethod[] = ["cash", "card", "instapay", "wallet"];
+/** Methods offered at the till. "card" is no longer accepted but stays valid on historical records. */
+export const allMethods: PaymentMethod[] = ["cash", "instapay", "wallet"];
+export const historicalMethods: PaymentMethod[] = [...allMethods, "card"];
+/** Offered methods, plus legacy "card" only when old records actually used it. */
+export const methodsInUse = (...totals: Array<Record<PaymentMethod, number>>): PaymentMethod[] => (totals.some((record) => record.card > 0) ? historicalMethods : allMethods);
 
 const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 const num = (value: unknown, fallback = 0) => { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : fallback; };
 const nextId = (list: Array<{ id: number }>) => list.reduce((max, item) => Math.max(max, item.id), 0) + 1;
 const str = (value: unknown, fallback = "") => (typeof value === "string" ? value.trim() : fallback);
 const iso = (value: unknown) => { const text = typeof value === "string" ? value : ""; return Number.isFinite(Date.parse(text)) ? text : new Date().toISOString(); };
-const isMethod = (value: unknown): value is PaymentMethod => typeof value === "string" && (allMethods as string[]).includes(value);
+const isMethod = (value: unknown): value is PaymentMethod => typeof value === "string" && (historicalMethods as string[]).includes(value);
 
 /* ---------- Persistence ---------- */
 export function normalizeExtras(raw: unknown): PosExtras {
