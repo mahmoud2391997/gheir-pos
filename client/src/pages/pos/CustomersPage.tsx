@@ -15,7 +15,6 @@ export default function CustomersPage({ extras, onExtras, isArabic, userName, is
     onExtras(withAudit({ ...extras, customers: result.customers }, userName, "customer.add", result.customer.name));
     setForm({ name: "", phone: "", email: "", notes: "" }); setError("");
   };
-  const updateLoyalty = (patch: Partial<typeof extras.loyalty>) => onExtras(withAudit({ ...extras, loyalty: { ...extras.loyalty, ...patch } }, userName, "loyalty.update", JSON.stringify(patch)));
   const adjustPoints = (customer: Customer, delta: number) => onExtras(withAudit({ ...extras, customers: extras.customers.map((item) => item.id === customer.id ? { ...item, points: Math.max(0, item.points + delta) } : item) }, userName, "customer.points", `${customer.name} ${delta > 0 ? "+" : ""}${delta}`));
   const removeCustomer = (customer: Customer) => { onExtras(withAudit({ ...extras, customers: extras.customers.filter((item) => item.id !== customer.id) }, userName, "customer.delete", customer.name)); setOpenId(null); };
   const stats = selected ? customerStats(selected, sales, extras.refunds) : null;
@@ -30,11 +29,6 @@ export default function CustomersPage({ extras, onExtras, isArabic, userName, is
         <Panel eyebrow={t("New", "جديد")} title={t("Add customer", "إضافة عميل")}>
           <form onSubmit={submit} className="flex flex-col gap-3"><Field label={t("Name", "الاسم")}><input className={inputCls} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></Field><Field label={t("Phone", "الهاتف")}><input className={inputCls} inputMode="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></Field><Field label={t("Email (optional)", "البريد (اختياري)")}><input className={inputCls} type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></Field><Field label={t("Notes (optional)", "ملاحظات (اختياري)")}><input className={inputCls} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></Field><ErrorLine message={error} /><button type="submit" className={btnPrimary}>{t("Save customer", "حفظ العميل")}</button></form>
         </Panel>
-        {isAdmin && <Panel eyebrow={t("Program", "البرنامج")} title={t("Loyalty settings", "إعدادات الولاء")}>
-          <div className="flex flex-col gap-3 text-sm"><label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={extras.loyalty.enabled} onChange={(event) => updateLoyalty({ enabled: event.target.checked })} />{t("Earn points on sales", "اكتساب نقاط عند البيع")}</label>
-            <Field label={t("Spend per 1 point (EGP)", "الإنفاق لكل نقطة (ج.م)")}><input className={inputCls} type="number" min={1} value={extras.loyalty.spendPerPoint} onChange={(event) => Number(event.target.value) > 0 && updateLoyalty({ spendPerPoint: Number(event.target.value) })} /></Field>
-            <Field label={t("Value of 1 point (EGP)", "قيمة النقطة (ج.م)")}><input className={inputCls} type="number" min={0.1} step={0.1} value={extras.loyalty.pointValue} onChange={(event) => Number(event.target.value) > 0 && updateLoyalty({ pointValue: Number(event.target.value) })} /></Field></div>
-        </Panel>}
       </div>
     </div>
     <Modal open={Boolean(selected)} onClose={() => setOpenId(null)} title={selected?.name ?? ""} description={selected ? [selected.phone, selected.email].filter(Boolean).join(" · ") : ""} wide>

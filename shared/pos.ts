@@ -31,13 +31,12 @@ const isMethod = (value: unknown): value is PaymentMethod => typeof value === "s
 export function normalizeExtras(raw: unknown): PosExtras {
   const data = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const list = <T,>(value: unknown, map: (item: Record<string, unknown>) => T | null): T[] => (Array.isArray(value) ? value.map((item) => (item && typeof item === "object" ? map(item as Record<string, unknown>) : null)).filter((item): item is T => item != null) : []);
-  const loyalty = (data.loyalty && typeof data.loyalty === "object" ? data.loyalty : {}) as Partial<LoyaltySettings>;
   return {
     customers: list(data.customers, (c) => (str(c.name) ? { id: num(c.id), name: str(c.name), phone: str(c.phone), email: str(c.email) || undefined, notes: str(c.notes) || undefined, points: Math.max(0, Math.floor(num(c.points))), createdAt: iso(c.createdAt) } : null)),
     refunds: list(data.refunds, (r) => (Array.isArray(r.items) ? ({ id: num(r.id), saleId: num(r.saleId), receiptNumber: str(r.receiptNumber), items: (r.items as RefundItem[]).map((i) => ({ index: num(i.index), productId: i.productId, name: str(i.name), arabicName: i.arabicName ?? null, quantity: num(i.quantity), amount: num(i.amount), costTotal: num(i.costTotal), restock: Boolean(i.restock) })), amount: num(r.amount), method: isMethod(r.method) ? r.method : "cash", reason: str(r.reason), by: str(r.by), createdAt: iso(r.createdAt), pointsReversed: num(r.pointsReversed) || undefined } as RefundRecord) : null)),
     shifts: list(data.shifts, (s) => ({ id: num(s.id), openedAt: iso(s.openedAt), openedBy: str(s.openedBy), openingCash: Math.max(0, num(s.openingCash)), closedAt: s.closedAt ? iso(s.closedAt) : undefined, closedBy: str(s.closedBy) || undefined, countedCash: s.countedCash == null ? undefined : num(s.countedCash), note: str(s.note) || undefined, movements: list(s.movements, (m) => ({ id: num(m.id), type: m.type === "out" ? "out" : "in", amount: Math.max(0, num(m.amount)), reason: str(m.reason), by: str(m.by), createdAt: iso(m.createdAt) } as CashMovement)) })),
     audit: list(data.audit, (a) => ({ id: num(a.id), at: iso(a.at), by: str(a.by), action: str(a.action), detail: str(a.detail) })),
-    loyalty: { enabled: loyalty.enabled !== false, spendPerPoint: num(loyalty.spendPerPoint, 100) > 0 ? num(loyalty.spendPerPoint, 100) : 100, pointValue: num(loyalty.pointValue, 1) > 0 ? num(loyalty.pointValue, 1) : 1 },
+    loyalty: defaultLoyalty,
   };
 }
 export function readPosExtras(): PosExtras {

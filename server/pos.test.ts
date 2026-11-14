@@ -101,10 +101,10 @@ describe("profit", () => {
 describe("persistence normalisation", () => {
   it("survives garbage and keeps valid records", () => {
     expect(normalizeExtras("nope")).toEqual(emptyExtras);
-    const cleaned = normalizeExtras({ customers: [{ id: 1, name: "A", phone: "1", points: -4 }, { name: "" }, null], loyalty: { spendPerPoint: -1 } });
+    const cleaned = normalizeExtras({ customers: [{ id: 1, name: "A", phone: "1", points: -4 }, { name: "" }, null], loyalty: { spendPerPoint: 5 } });
     expect(cleaned.customers).toHaveLength(1);
     expect(cleaned.customers[0].points).toBe(0);
-    expect(cleaned.loyalty.spendPerPoint).toBe(100);
+    expect(cleaned.loyalty).toEqual({ enabled: true, spendPerPoint: 100, pointValue: 1 });
   });
 });
 
