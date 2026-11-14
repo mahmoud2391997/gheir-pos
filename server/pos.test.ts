@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addCashMovement, addCustomer, addExpense, addSupplier, adjustStock, applyRefundToProducts, applySaleToCustomer, closeShift, createRefund, currentShift, customerStats, emptyExtras, normalizeExtras, openShift, pointsForTotal, pointsToReverse, profitSummary, receivePurchase, refundStatus, refundableLines, resolveTenders, shiftSummary, type PosExtras, type RefundRecord } from "../shared/pos";
+import { addCashMovement, addCustomer, applyRefundToProducts, applySaleToCustomer, closeShift, createRefund, currentShift, customerStats, emptyExtras, normalizeExtras, openShift, pointsForTotal, pointsToReverse, profitSummary, refundStatus, refundableLines, resolveTenders, shiftSummary, type PosExtras, type RefundRecord } from "../shared/pos";
 import { createLocalDatabase, defaultSystemSettings, parseLocalDatabase, type ProductRecord, type SaleRecord } from "../shared/sku";
 
 const product = (id: number, stock: number, cost = 10): ProductRecord => ({ id, name: `P${id}`, category: "C", baseSku: `P${id}`, price: 100, cost, stock, color: "Clay", colorCode: "CLAY", shape: "round" });
@@ -75,45 +75,26 @@ describe("shifts and cash drawer", () => {
     expect(openShift(opened.extras, 1, "Z")).toEqual({ ok: false, error: "already-open" });
     const sales = [sale({ payments: [{ method: "cash", amount: 170 }, { method: "card", amount: 100 }], total: 270 })];
     const moved = addCashMovement(opened.extras, "out", 50, "Bank drop", "Ziad"); if (!moved.ok) throw new Error("move");
-    const spent = addExpense(moved.extras, { category: "Supplies", description: "Tape", amount: 20, method: "cash", fromDrawer: true }, "Ziad"); if (!spent.ok) throw new Error("expense");
     const refund = { id: 1, saleId: 1, receiptNumber: "GH-1", items: [], amount: 40, method: "cash", reason: "r", by: "Z", createdAt: opened.shift.openedAt } as RefundRecord;
-    const withRefund = { ...spent.extras, refunds: [refund] };
-    const live = shiftSummary(currentShift(withRefund.shifts)!, sales, withRefund.refunds, withRefund.expenses);
+    const withRefund = { ...moved.extras, refunds: [refund] };
+    const live = shiftSummary(currentShift(withRefund.shifts)!, sales, withRefund.refunds);
     expect(live.byMethod).toMatchObject({ cash: 170, card: 100 });
-    expect(live.expectedCash).toBe(500 + 170 - 40 - 50 - 20);
+    expect(live.expectedCash).toBe(500 + 170 - 40 - 50);
     const closed = closeShift(withRefund, sales, 555, "ok", "Ziad"); if (!closed.ok) throw new Error("close");
-    expect(closed.summary.variance).toBe(555 - 560);
+    expect(closed.summary.variance).toBe(555 - 580);
     expect(currentShift(closed.extras.shifts)).toBeNull();
     expect(closed.extras.audit[0].action).toBe("shift.close");
   });
-  it("blocks drawer movements and drawer expenses without an open shift", () => {
+  it("blocks drawer movements without an open shift", () => {
     expect(addCashMovement(base, "in", 10, "x", "Z")).toEqual({ ok: false, error: "no-shift" });
-    expect(addExpense(base, { category: "Other", description: "x", amount: 5, method: "cash", fromDrawer: true }, "Z")).toEqual({ ok: false, error: "no-shift" });
   });
 });
 
-describe("purchasing, stock control and profit", () => {
-  it("receives stock, averages cost and logs the action", () => {
-    const supplied = addSupplier(emptyExtras, { name: "Clay Co" }, "Admin"); if (!supplied.ok) throw new Error("supplier");
-    expect(addSupplier(supplied.extras, { name: "clay co" }, "Admin")).toEqual({ ok: false, error: "duplicate" });
-    const received = receivePurchase(supplied.extras, [product(1, 10, 10)], { supplierId: 1, lines: [{ productId: 1, quantity: 10, unitCost: 20 }] }, "Admin");
-    if (!received.ok) throw new Error("receive");
-    expect(received.products[0]).toMatchObject({ stock: 20, cost: 15 });
-    expect(received.purchase.total).toBe(200);
-    expect(receivePurchase(emptyExtras, [product(1, 1)], { lines: [{ productId: 9, quantity: 1, unitCost: 1 }] }, "A")).toEqual({ ok: false, error: "invalid" });
-  });
-  it("adjusts stock with a mandatory reason and records before/after", () => {
-    const result = adjustStock(emptyExtras, [product(1, 5)], 1, 3, "Damaged", "Admin"); if (!result.ok) throw new Error("adjust");
-    expect(result.products[0].stock).toBe(3);
-    expect(result.extras.adjustments[0]).toMatchObject({ before: 5, after: 3, delta: -2 });
-    expect(adjustStock(emptyExtras, [product(1, 5)], 1, 3, "", "A")).toEqual({ ok: false, error: "reason" });
-    expect(adjustStock(emptyExtras, [product(1, 5)], 1, 5, "same", "A")).toEqual({ ok: false, error: "unchanged" });
-  });
-  it("computes net profit after refunds, returned stock cost and expenses", () => {
+describe("profit", () => {
+  it("computes profit after refunds and returned stock cost", () => {
     const original = sale();
     const result = createRefund(original, [], [{ index: 0, quantity: 1, restock: true }], "cash", "r", "Z"); if (!result.ok) throw new Error("refund");
-    const spent = addExpense(emptyExtras, { category: "Rent", description: "May", amount: 50, method: "cash" }, "A"); if (!spent.ok) throw new Error("expense");
-    expect(profitSummary([original], [result.refund], spent.extras.expenses)).toEqual({ revenue: 270, refunded: 90, netRevenue: 180, cogs: 20, grossProfit: 160, expenses: 50, netProfit: 110 });
+    expect(profitSummary([original], [result.refund])).toEqual({ revenue: 270, refunded: 90, netRevenue: 180, cogs: 20, grossProfit: 160 });
   });
 });
 
@@ -129,10 +110,10 @@ describe("persistence normalisation", () => {
 
 describe("backup", () => {
   it("round-trips POS extras and split payments through export and import", () => {
-    const supplied = addSupplier(emptyExtras, { name: "Clay Co" }, "Admin"); if (!supplied.ok) throw new Error("supplier");
+    const opened = openShift(emptyExtras, 100, "Admin"); if (!opened.ok) throw new Error("shift");
     const split = sale({ payments: [{ method: "cash", amount: 170 }, { method: "wallet", amount: 100 }], customerId: 3 });
-    const restored = parseLocalDatabase(JSON.stringify(createLocalDatabase({ products: [], sales: [split], settings: defaultSystemSettings, language: "en", extras: supplied.extras })));
+    const restored = parseLocalDatabase(JSON.stringify(createLocalDatabase({ products: [], sales: [split], settings: defaultSystemSettings, language: "en", extras: opened.extras })));
     expect(restored?.sales[0].payments).toHaveLength(2);
-    expect(normalizeExtras(restored?.extras).suppliers[0].name).toBe("Clay Co");
+    expect(normalizeExtras(restored?.extras).shifts[0].openingCash).toBe(100);
   });
 });

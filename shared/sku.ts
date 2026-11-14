@@ -1,6 +1,6 @@
 export type UserRole = "admin" | "cashier";
 export type PaymentMethod = "cash" | "card" | "instapay" | "wallet";
-export type AppSection = "register" | "orders" | "customers" | "shift" | "catalog" | "purchasing" | "stock" | "sku" | "reports" | "settings";
+export type AppSection = "register" | "orders" | "customers" | "shift" | "catalog" | "sku" | "reports" | "settings";
 
 export type ProductRecord = { id: number; name: string; arabicName?: string | null; englishName?: string | null; category: string; categoryAr?: string | null; baseSku: string; price: number; cost?: number; stock: number; color: string; colorArabic?: string | null; colorCode: string; shape: string; barcode?: string; image?: string | null; active?: boolean };
 export type SaleRecord = { id: number; receiptNumber: string; total: number; discount: number; tax: number; tendered?: number | null; change?: number | null; paymentMethod: PaymentMethod; payments?: Array<{ method: PaymentMethod; amount: number }>; customerId?: number | null; customerName?: string | null; cashier?: string | null; pointsEarned?: number; pointsRedeemed?: number; items: Array<{ productId?: number; color?: string; colorArabic?: string | null; name: string; arabicName?: string | null; category?: string | null; quantity: number; total: number; costTotal?: number }>; createdAt: string };
@@ -39,8 +39,6 @@ export const appSections: Array<{ id: AppSection; label: string; arabicLabel: st
   { id: "customers", label: "Customers", arabicLabel: "العملاء", caption: "Profiles & loyalty", arabicCaption: "الملفات والولاء" },
   { id: "shift", label: "Shift & cash", arabicLabel: "الوردية والنقدية", caption: "Drawer and day close", arabicCaption: "الدرج وإقفال اليوم" },
   { id: "catalog", label: "Catalog", arabicLabel: "المنتجات", caption: "Products & stock", arabicCaption: "المنتجات والمخزون" },
-  { id: "purchasing", label: "Purchasing", arabicLabel: "المشتريات", caption: "Suppliers, stock-in, expenses", arabicCaption: "الموردون والتوريد والمصروفات" },
-  { id: "stock", label: "Stock control", arabicLabel: "مراقبة المخزون", caption: "Adjustments & audit log", arabicCaption: "التسويات وسجل العمليات" },
   { id: "sku", label: "SKU Lab", arabicLabel: "معمل الأكواد", caption: "Export product labels", arabicCaption: "تصدير ملصقات المنتجات" },
   { id: "reports", label: "Reports", arabicLabel: "التقارير", caption: "Sales and stock", arabicCaption: "المبيعات والمخزون" },
   { id: "settings", label: "System settings", arabicLabel: "إعدادات النظام", caption: "Store and receipt defaults", arabicCaption: "إعدادات المتجر والإيصال" },

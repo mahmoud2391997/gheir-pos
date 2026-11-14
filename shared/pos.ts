@@ -7,19 +7,13 @@ export type RefundItem = { index: number; productId?: number; name: string; arab
 export type RefundRecord = { id: number; saleId: number; receiptNumber: string; items: RefundItem[]; amount: number; method: PaymentMethod; reason: string; by: string; createdAt: string; pointsReversed?: number };
 export type CashMovement = { id: number; type: "in" | "out"; amount: number; reason: string; by: string; createdAt: string };
 export type Shift = { id: number; openedAt: string; openedBy: string; openingCash: number; closedAt?: string; closedBy?: string; countedCash?: number; note?: string; movements: CashMovement[] };
-export type Supplier = { id: number; name: string; phone?: string; notes?: string };
-export type Expense = { id: number; date: string; category: string; description: string; amount: number; method: PaymentMethod; supplierId?: number | null; fromDrawer?: boolean; by: string };
-export type PurchaseLine = { productId: number; name: string; quantity: number; unitCost: number };
-export type Purchase = { id: number; date: string; supplierId?: number | null; reference?: string; lines: PurchaseLine[]; total: number; note?: string; by: string };
-export type StockAdjustment = { id: number; productId: number; name: string; before: number; after: number; delta: number; reason: string; by: string; createdAt: string };
 export type AuditEntry = { id: number; at: string; by: string; action: string; detail: string };
 export type LoyaltySettings = { enabled: boolean; spendPerPoint: number; pointValue: number };
-export type PosExtras = { customers: Customer[]; refunds: RefundRecord[]; shifts: Shift[]; suppliers: Supplier[]; expenses: Expense[]; purchases: Purchase[]; adjustments: StockAdjustment[]; audit: AuditEntry[]; loyalty: LoyaltySettings };
+export type PosExtras = { customers: Customer[]; refunds: RefundRecord[]; shifts: Shift[]; audit: AuditEntry[]; loyalty: LoyaltySettings };
 
 export const defaultLoyalty: LoyaltySettings = { enabled: true, spendPerPoint: 100, pointValue: 1 };
-export const emptyExtras: PosExtras = { customers: [], refunds: [], shifts: [], suppliers: [], expenses: [], purchases: [], adjustments: [], audit: [], loyalty: defaultLoyalty };
+export const emptyExtras: PosExtras = { customers: [], refunds: [], shifts: [], audit: [], loyalty: defaultLoyalty };
 export const posExtrasKey = "gheir-pos-extras";
-export const expenseCategories = ["Rent", "Utilities", "Salaries", "Supplies", "Marketing", "Transport", "Maintenance", "Other"];
 export const allMethods: PaymentMethod[] = ["cash", "card", "instapay", "wallet"];
 
 const round2 = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
@@ -38,10 +32,6 @@ export function normalizeExtras(raw: unknown): PosExtras {
     customers: list(data.customers, (c) => (str(c.name) ? { id: num(c.id), name: str(c.name), phone: str(c.phone), email: str(c.email) || undefined, notes: str(c.notes) || undefined, points: Math.max(0, Math.floor(num(c.points))), createdAt: iso(c.createdAt) } : null)),
     refunds: list(data.refunds, (r) => (Array.isArray(r.items) ? ({ id: num(r.id), saleId: num(r.saleId), receiptNumber: str(r.receiptNumber), items: (r.items as RefundItem[]).map((i) => ({ index: num(i.index), productId: i.productId, name: str(i.name), arabicName: i.arabicName ?? null, quantity: num(i.quantity), amount: num(i.amount), costTotal: num(i.costTotal), restock: Boolean(i.restock) })), amount: num(r.amount), method: isMethod(r.method) ? r.method : "cash", reason: str(r.reason), by: str(r.by), createdAt: iso(r.createdAt), pointsReversed: num(r.pointsReversed) || undefined } as RefundRecord) : null)),
     shifts: list(data.shifts, (s) => ({ id: num(s.id), openedAt: iso(s.openedAt), openedBy: str(s.openedBy), openingCash: Math.max(0, num(s.openingCash)), closedAt: s.closedAt ? iso(s.closedAt) : undefined, closedBy: str(s.closedBy) || undefined, countedCash: s.countedCash == null ? undefined : num(s.countedCash), note: str(s.note) || undefined, movements: list(s.movements, (m) => ({ id: num(m.id), type: m.type === "out" ? "out" : "in", amount: Math.max(0, num(m.amount)), reason: str(m.reason), by: str(m.by), createdAt: iso(m.createdAt) } as CashMovement)) })),
-    suppliers: list(data.suppliers, (s) => (str(s.name) ? { id: num(s.id), name: str(s.name), phone: str(s.phone) || undefined, notes: str(s.notes) || undefined } : null)),
-    expenses: list(data.expenses, (e) => ({ id: num(e.id), date: iso(e.date), category: str(e.category, "Other") || "Other", description: str(e.description), amount: Math.max(0, num(e.amount)), method: isMethod(e.method) ? e.method : "cash", supplierId: e.supplierId == null ? null : num(e.supplierId), fromDrawer: Boolean(e.fromDrawer), by: str(e.by) })),
-    purchases: list(data.purchases, (p) => (Array.isArray(p.lines) ? { id: num(p.id), date: iso(p.date), supplierId: p.supplierId == null ? null : num(p.supplierId), reference: str(p.reference) || undefined, lines: (p.lines as PurchaseLine[]).map((l) => ({ productId: num(l.productId), name: str(l.name), quantity: num(l.quantity), unitCost: num(l.unitCost) })), total: num(p.total), note: str(p.note) || undefined, by: str(p.by) } : null)),
-    adjustments: list(data.adjustments, (a) => ({ id: num(a.id), productId: num(a.productId), name: str(a.name), before: num(a.before), after: num(a.after), delta: num(a.delta), reason: str(a.reason), by: str(a.by), createdAt: iso(a.createdAt) })),
     audit: list(data.audit, (a) => ({ id: num(a.id), at: iso(a.at), by: str(a.by), action: str(a.action), detail: str(a.detail) })),
     loyalty: { enabled: loyalty.enabled !== false, spendPerPoint: num(loyalty.spendPerPoint, 100) > 0 ? num(loyalty.spendPerPoint, 100) : 100, pointValue: num(loyalty.pointValue, 1) > 0 ? num(loyalty.pointValue, 1) : 1 },
   };
@@ -179,9 +169,9 @@ export function addCashMovement(extras: PosExtras, type: "in" | "out", amount: n
   const shifts = extras.shifts.map((item) => (item.id === shift.id ? { ...item, movements: [movement, ...item.movements] } : item));
   return { ok: true, extras: withAudit({ ...extras, shifts }, by, `cash.${type}`, `${movement.amount} — ${movement.reason}`) };
 }
-export type ShiftSummary = { sales: number; orders: number; gross: number; discounts: number; tax: number; refunds: number; net: number; byMethod: Record<PaymentMethod, number>; refundsByMethod: Record<PaymentMethod, number>; cashIn: number; cashOut: number; cashExpenses: number; expectedCash: number; variance: number | null; startedAt: string; endedAt: string };
+export type ShiftSummary = { sales: number; orders: number; gross: number; discounts: number; tax: number; refunds: number; net: number; byMethod: Record<PaymentMethod, number>; refundsByMethod: Record<PaymentMethod, number>; cashIn: number; cashOut: number; expectedCash: number; variance: number | null; startedAt: string; endedAt: string };
 const zeroMethods = (): Record<PaymentMethod, number> => ({ cash: 0, card: 0, instapay: 0, wallet: 0 });
-export function shiftSummary(shift: Shift, sales: SaleRecord[], refunds: RefundRecord[], expenses: Expense[]): ShiftSummary {
+export function shiftSummary(shift: Shift, sales: SaleRecord[], refunds: RefundRecord[]): ShiftSummary {
   const start = Date.parse(shift.openedAt); const end = shift.closedAt ? Date.parse(shift.closedAt) : Date.now() + 1000;
   const inRange = (value: string) => { const at = Date.parse(value); return at >= start && at <= end; };
   const shiftSales = sales.filter((sale) => inRange(sale.createdAt));
@@ -192,72 +182,25 @@ export function shiftSummary(shift: Shift, sales: SaleRecord[], refunds: RefundR
   const gross = round2(shiftSales.reduce((sum, sale) => sum + sale.total, 0)); const refundTotal = round2(shiftRefunds.reduce((sum, refund) => sum + refund.amount, 0));
   const cashIn = round2(shift.movements.filter((move) => move.type === "in").reduce((sum, move) => sum + move.amount, 0));
   const cashOut = round2(shift.movements.filter((move) => move.type === "out").reduce((sum, move) => sum + move.amount, 0));
-  const cashExpenses = round2(expenses.filter((expense) => expense.fromDrawer && expense.method === "cash" && inRange(expense.date)).reduce((sum, expense) => sum + expense.amount, 0));
-  const expectedCash = round2(shift.openingCash + byMethod.cash - refundsByMethod.cash + cashIn - cashOut - cashExpenses);
-  return { sales: shiftSales.length, orders: shiftSales.length, gross, discounts: round2(shiftSales.reduce((sum, sale) => sum + sale.discount, 0)), tax: round2(shiftSales.reduce((sum, sale) => sum + sale.tax, 0)), refunds: refundTotal, net: round2(gross - refundTotal), byMethod, refundsByMethod, cashIn, cashOut, cashExpenses, expectedCash, variance: shift.countedCash == null ? null : round2(shift.countedCash - expectedCash), startedAt: shift.openedAt, endedAt: shift.closedAt ?? new Date().toISOString() };
+  const expectedCash = round2(shift.openingCash + byMethod.cash - refundsByMethod.cash + cashIn - cashOut);
+  return { sales: shiftSales.length, orders: shiftSales.length, gross, discounts: round2(shiftSales.reduce((sum, sale) => sum + sale.discount, 0)), tax: round2(shiftSales.reduce((sum, sale) => sum + sale.tax, 0)), refunds: refundTotal, net: round2(gross - refundTotal), byMethod, refundsByMethod, cashIn, cashOut, expectedCash, variance: shift.countedCash == null ? null : round2(shift.countedCash - expectedCash), startedAt: shift.openedAt, endedAt: shift.closedAt ?? new Date().toISOString() };
 }
 export function closeShift(extras: PosExtras, sales: SaleRecord[], countedCash: number, note: string, by: string): { ok: true; extras: PosExtras; summary: ShiftSummary } | { ok: false; error: "no-shift" | "negative" } {
   const shift = currentShift(extras.shifts);
   if (!shift) return { ok: false, error: "no-shift" };
   if (!(countedCash >= 0)) return { ok: false, error: "negative" };
   const closed: Shift = { ...shift, closedAt: new Date().toISOString(), closedBy: by, countedCash: round2(countedCash), note: note.trim() || undefined };
-  const summary = shiftSummary(closed, sales, extras.refunds, extras.expenses);
+  const summary = shiftSummary(closed, sales, extras.refunds);
   const next = { ...extras, shifts: extras.shifts.map((item) => (item.id === shift.id ? closed : item)) };
   return { ok: true, summary, extras: withAudit(next, by, "shift.close", `#${shift.id} expected ${summary.expectedCash} counted ${closed.countedCash} variance ${summary.variance}`) };
 }
 
-/* ---------- Suppliers, purchases, expenses ---------- */
-export function addSupplier(extras: PosExtras, input: { name: string; phone?: string; notes?: string }, by: string): { ok: true; extras: PosExtras } | { ok: false; error: "name" | "duplicate" } {
-  const name = input.name.trim(); if (!name) return { ok: false, error: "name" };
-  if (extras.suppliers.some((supplier) => supplier.name.toLowerCase() === name.toLowerCase())) return { ok: false, error: "duplicate" };
-  const supplier: Supplier = { id: nextId(extras.suppliers), name, phone: input.phone?.trim() || undefined, notes: input.notes?.trim() || undefined };
-  return { ok: true, extras: withAudit({ ...extras, suppliers: [...extras.suppliers, supplier] }, by, "supplier.add", name) };
-}
-/** Receive stock from a supplier: raises stock and re-averages cost. */
-export function receivePurchase(extras: PosExtras, products: ProductRecord[], input: { supplierId?: number | null; reference?: string; note?: string; lines: Array<{ productId: number; quantity: number; unitCost: number }> }, by: string): { ok: true; extras: PosExtras; products: ProductRecord[]; purchase: Purchase } | { ok: false; error: "empty" | "invalid" } {
-  const lines: PurchaseLine[] = [];
-  for (const line of input.lines) {
-    if (!(line.quantity > 0)) continue;
-    const product = products.find((item) => item.id === line.productId);
-    if (!product || !Number.isInteger(line.quantity) || !(line.unitCost >= 0)) return { ok: false, error: "invalid" };
-    lines.push({ productId: product.id, name: product.name, quantity: line.quantity, unitCost: round2(line.unitCost) });
-  }
-  if (!lines.length) return { ok: false, error: "empty" };
-  const nextProducts = products.map((product) => {
-    const received = lines.filter((line) => line.productId === product.id); if (!received.length) return product;
-    const qty = received.reduce((sum, line) => sum + line.quantity, 0); const value = received.reduce((sum, line) => sum + line.quantity * line.unitCost, 0);
-    const onHand = Math.max(0, product.stock); const cost = round2(((onHand * (product.cost ?? 0)) + value) / (onHand + qty));
-    return { ...product, stock: product.stock + qty, cost };
-  });
-  const purchase: Purchase = { id: nextId(extras.purchases), date: new Date().toISOString(), supplierId: input.supplierId ?? null, reference: input.reference?.trim() || undefined, lines, total: round2(lines.reduce((sum, line) => sum + line.quantity * line.unitCost, 0)), note: input.note?.trim() || undefined, by };
-  return { ok: true, products: nextProducts, purchase, extras: withAudit({ ...extras, purchases: [purchase, ...extras.purchases] }, by, "stock.receive", `${lines.length} line(s), total ${purchase.total}`) };
-}
-export function addExpense(extras: PosExtras, input: { category: string; description: string; amount: number; method: PaymentMethod; supplierId?: number | null; fromDrawer?: boolean }, by: string): { ok: true; extras: PosExtras } | { ok: false; error: "amount" | "description" | "no-shift" } {
-  if (!(input.amount > 0)) return { ok: false, error: "amount" };
-  if (!input.description.trim()) return { ok: false, error: "description" };
-  const fromDrawer = Boolean(input.fromDrawer) && input.method === "cash";
-  if (fromDrawer && !currentShift(extras.shifts)) return { ok: false, error: "no-shift" };
-  const expense: Expense = { id: nextId(extras.expenses), date: new Date().toISOString(), category: input.category || "Other", description: input.description.trim(), amount: round2(input.amount), method: input.method, supplierId: input.supplierId ?? null, fromDrawer, by };
-  return { ok: true, extras: withAudit({ ...extras, expenses: [expense, ...extras.expenses] }, by, "expense.add", `${expense.category} ${expense.amount} — ${expense.description}`) };
-}
-
-/* ---------- Stock adjustments ---------- */
-export function adjustStock(extras: PosExtras, products: ProductRecord[], productId: number, newStock: number, reason: string, by: string): { ok: true; extras: PosExtras; products: ProductRecord[] } | { ok: false; error: "product" | "quantity" | "reason" | "unchanged" } {
-  const product = products.find((item) => item.id === productId); if (!product) return { ok: false, error: "product" };
-  if (!Number.isInteger(newStock) || newStock < 0) return { ok: false, error: "quantity" };
-  if (!reason.trim()) return { ok: false, error: "reason" };
-  if (newStock === product.stock) return { ok: false, error: "unchanged" };
-  const adjustment: StockAdjustment = { id: nextId(extras.adjustments), productId, name: product.name, before: product.stock, after: newStock, delta: newStock - product.stock, reason: reason.trim(), by, createdAt: new Date().toISOString() };
-  return { ok: true, products: products.map((item) => (item.id === productId ? { ...item, stock: newStock } : item)), extras: withAudit({ ...extras, adjustments: [adjustment, ...extras.adjustments] }, by, "stock.adjust", `${product.name}: ${adjustment.before} → ${adjustment.after} (${adjustment.reason})`) };
-}
-
-/* ---------- Profit with refunds & expenses ---------- */
-export function profitSummary(sales: SaleRecord[], refunds: RefundRecord[], expenses: Expense[]) {
+/* ---------- Profit with refunds ---------- */
+export function profitSummary(sales: SaleRecord[], refunds: RefundRecord[]) {
   const revenue = round2(sales.reduce((sum, sale) => sum + sale.total, 0));
   const refunded = round2(refunds.reduce((sum, refund) => sum + refund.amount, 0));
   const soldCost = sales.reduce((sum, sale) => sum + sale.items.reduce((inner, item) => inner + (item.costTotal ?? 0), 0), 0);
   const returnedCost = refunds.reduce((sum, refund) => sum + refund.items.filter((item) => item.restock).reduce((inner, item) => inner + item.costTotal, 0), 0);
   const cogs = round2(soldCost - returnedCost); const netRevenue = round2(revenue - refunded); const grossProfit = round2(netRevenue - cogs);
-  const expenseTotal = round2(expenses.reduce((sum, expense) => sum + expense.amount, 0));
-  return { revenue, refunded, netRevenue, cogs, grossProfit, expenses: expenseTotal, netProfit: round2(grossProfit - expenseTotal) };
+  return { revenue, refunded, netRevenue, cogs, grossProfit };
 }
