@@ -139,5 +139,7 @@ pnpm dlx vercel        # preview
 pnpm dlx vercel --prod # production
 ```
 
-Or import the repo in the Vercel dashboard — the settings come from `vercel.json`. Demo logins: `ziad / cashier`
-(cashier) and `ziad / admin` (admin). Data is per-browser; use **Settings → Reset** to start clean.
+Or import the repo in the Vercel dashboard — the settings come from `vercel.json`, which builds with
+`VITE_DEMO_MODE=1`. The deployed demo has **no login**: it opens as admin and shows a **Demo role** switch
+(Cashier / Admin) in the top bar. Normal builds (without `VITE_DEMO_MODE`) keep the login screen
+(`ziad / cashier`, `ziad / admin`). Data is per-browser; use **Settings → Reset** to start clean.
